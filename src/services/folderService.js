@@ -34,6 +34,17 @@ export const folderService = {
     }
   },
 
+  // Obtener una carpeta específica (alias para getFolderDetails)
+  getFolder: async (folderId) => {
+    try {
+      const response = await api.get(`/api/folders/${folderId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo carpeta:', error);
+      throw error.response?.data || { mensaje: 'Error al obtener carpeta' };
+    }
+  },
+
   // Crear nueva carpeta (solo admin)
   createFolder: async (folderData) => {
     try {
