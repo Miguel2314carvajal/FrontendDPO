@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import { folderService } from '../services/folderService';
 import { fileService } from '../services/fileService';
+import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 
 const FolderFiles = () => {
@@ -16,10 +17,22 @@ const FolderFiles = () => {
   const [files, setFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(null);
+  
+  // Estados para el modal de subida de archivos
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [fileData, setFileData] = useState({
+    archivo: null,
+    nombre: '',
+    descripcion: '',
+    clienteDestinatario: ''
+  });
+  const [users, setUsers] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     if (folderId) {
       loadFolderData();
+      loadUsers();
     }
   }, [folderId]);
 
@@ -73,6 +86,105 @@ const FolderFiles = () => {
   const handleEnterSubfolder = (subfolderId, subfolderName) => {
     navigate(`/dashboard/files/${subfolderId}`, { 
       state: { folderName: subfolderName, folderId: subfolderId } 
+    });
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await authService.listUsers();
+      // Filtrar solo usuarios (no administradores) - igual que en móvil
+      const clientUsers = response.filter(user => user.rol === 'usuario');
+      setUsers(clientUsers);
+    } catch (error) {
+      console.error('Error cargando usuarios:', error);
+      toast.error('Error al cargar usuarios');
+    }
+  };
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Auto-descripción basada en el tipo de archivo (igual que en móvil)
+      const fileExtension = file.name?.split('.').pop()?.toLowerCase();
+      let autoDescription = '';
+      
+      switch (fileExtension) {
+        case 'pdf':
+          autoDescription = 'Documento PDF';
+          break;
+        case 'doc':
+        case 'docx':
+          autoDescription = 'Documento de Word';
+          break;
+        case 'xls':
+        case 'xlsx':
+          autoDescription = 'Hoja de cálculo Excel';
+          break;
+        case 'ppt':
+        case 'pptx':
+          autoDescription = 'Presentación PowerPoint';
+          break;
+        case 'jpg':
+        case 'jpeg':
+        case 'png':
+          autoDescription = 'Imagen';
+          break;
+        case 'txt':
+          autoDescription = 'Archivo de texto';
+          break;
+        default:
+          autoDescription = `Archivo ${fileExtension?.toUpperCase() || 'desconocido'}`;
+      }
+      
+      setFileData({
+        ...fileData,
+        archivo: file,
+        nombre: file.name.split('.')[0], // Nombre sin extensión
+        descripcion: autoDescription // Descripción automática
+      });
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!fileData.nombre.trim() || !fileData.descripcion.trim() || !fileData.archivo) {
+      toast.error('Por favor completa todos los campos y selecciona un archivo');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      
+      // Crear FormData para enviar el archivo
+      const formData = new FormData();
+      formData.append('file', fileData.archivo);
+      formData.append('name', fileData.nombre);
+      formData.append('description', fileData.descripcion);
+      formData.append('folder', folderId);
+      formData.append('clienteDestinatario', fileData.clienteDestinatario || auth._id);
+      
+      // Subir archivo usando el servicio
+      await fileService.uploadFile(formData);
+      
+      toast.success('Archivo subido correctamente');
+      setShowUploadModal(false);
+      resetForm();
+      
+      // Recargar datos de la carpeta para actualizar contadores
+      await loadFolderData();
+    } catch (error) {
+      console.error('Error subiendo archivo:', error);
+      toast.error('No se pudo subir el archivo');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFileData({
+      archivo: null,
+      nombre: '',
+      descripcion: '',
+      clienteDestinatario: ''
     });
   };
 
@@ -138,7 +250,7 @@ const FolderFiles = () => {
               </div>
             </div>
             <button
-              onClick={() => navigate('/dashboard/upload')}
+              onClick={() => setShowUploadModal(true)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center"
             >
               <svg className="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,6 +394,115 @@ const FolderFiles = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de Subida de Archivos */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center mb-4">
+                <svg className="h-6 w-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <h3 className="text-lg font-medium text-gray-900">Subir Nuevo Archivo</h3>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Seleccionar archivo */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Seleccionar archivo
+                  </label>
+                  <input
+                    type="file"
+                    onChange={handleFileSelect}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {fileData.archivo && (
+                    <p className="mt-1 text-sm text-green-600">
+                      Archivo seleccionado: {fileData.archivo.name}
+                    </p>
+                  )}
+                </div>
+
+                {/* Nombre del archivo */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre del archivo
+                  </label>
+                  <input
+                    type="text"
+                    value={fileData.nombre}
+                    onChange={(e) => setFileData({ ...fileData, nombre: e.target.value })}
+                    placeholder="Nombre personalizado del archivo"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Descripción */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Descripción
+                  </label>
+                  <textarea
+                    value={fileData.descripcion}
+                    onChange={(e) => setFileData({ ...fileData, descripcion: e.target.value })}
+                    placeholder="Describe el contenido del archivo..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Cliente destinatario */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cliente Destinatario *
+                  </label>
+                  <select
+                    value={fileData.clienteDestinatario}
+                    onChange={(e) => setFileData({ ...fileData, clienteDestinatario: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Seleccionar cliente</option>
+                    {users.map((user) => (
+                      <option key={user._id} value={user._id}>
+                        {user.companyName} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    resetForm();
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Subiendo...
+                    </>
+                  ) : (
+                    'Subir Archivo'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
