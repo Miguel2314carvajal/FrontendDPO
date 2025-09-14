@@ -34,11 +34,7 @@ const Dashboard = () => {
       console.log('🔄 Cargando estadísticas...')
       
       const [usersResponse, foldersResponse] = await Promise.all([
-        fetch('https://auditorias-backend-production.up.railway.app/api/users/listar', {
-          headers: {
-            'Authorization': `Bearer ${auth.token}`
-          }
-        }).then(res => res.json()),
+        authService.listUsers(),
         folderService.getFolders()
       ])
       
@@ -119,6 +115,11 @@ const Dashboard = () => {
               }
               
               console.log(`📊 Total archivos en ${folder.name}: ${totalFiles} (${folder.files?.length || 0} principales + ${totalFiles - (folder.files?.length || 0)} de subcarpetas)`)
+              console.log(`📁 Datos de carpeta ${folder.name}:`, {
+                files: folder.files,
+                filesLength: folder.files?.length,
+                totalFiles: totalFiles
+              })
               
               return {
                 ...folder,
@@ -635,7 +636,7 @@ const Dashboard = () => {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{folder.name}</h3>
                   <p className="text-sm text-gray-500 mb-1">
-                    📄 {folder.totalFiles || folder.files?.length || folder.files || 0} archivos
+                    📄 {folder.totalFiles || folder.files?.length || 0} archivos
                   </p>
                   <p className="text-xs text-gray-400">
                     {new Date(folder.createdAt || folder.created_at).toLocaleDateString('es-ES')}
