@@ -23,8 +23,8 @@ const Dashboard = () => {
     if (auth?.rol === 'admin') {
       loadStats()
     } else {
-      // Para usuarios regulares, cargar carpetas
-      loadFolders()
+      // Para usuarios regulares, cargar carpetas asignadas
+      loadUserFolders()
     }
   }, [auth])
 
@@ -68,6 +68,52 @@ const Dashboard = () => {
     }
   }
 
+  const loadUserFolders = async () => {
+    try {
+      setLoading(true)
+      console.log('🔄 Cargando carpetas del usuario:', auth?.email)
+      console.log('📁 Carpetas asignadas al usuario:', auth?.folders)
+      
+      // Obtener las carpetas asignadas al usuario
+      if (auth?.folders && auth.folders.length > 0) {
+        console.log('🔍 Buscando', auth.folders.length, 'carpetas...')
+        
+        const userFolders = await Promise.all(
+          auth.folders.map(async (folderId) => {
+            try {
+              console.log('📂 Cargando carpeta:', folderId)
+              const folder = await folderService.getFolder(folderId)
+              console.log('✅ Carpeta cargada:', folder.name)
+              return folder
+            } catch (error) {
+              console.error(`❌ Error cargando carpeta ${folderId}:`, error)
+              return null
+            }
+          })
+        )
+        
+        // Filtrar carpetas válidas y solo mostrar carpetas principales (sin parentFolder)
+        const validFolders = userFolders.filter(folder => folder !== null)
+        const mainFolders = validFolders.filter(folder => 
+          !folder.parentFolder || folder.parentFolder === null
+        )
+        
+        console.log('📊 Carpetas válidas encontradas:', validFolders.length)
+        console.log('📁 Carpetas principales (sin subcarpetas):', mainFolders.length)
+        setFolders(mainFolders)
+      } else {
+        console.log('⚠️ Usuario no tiene carpetas asignadas')
+        setFolders([])
+      }
+    } catch (error) {
+      console.error('❌ Error cargando carpetas del usuario:', error)
+      toast.error('Error al cargar carpetas')
+      setFolders([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const loadFolders = async () => {
     try {
       setLoading(true)
@@ -98,9 +144,17 @@ const Dashboard = () => {
   }
 
   const openFolder = (folderId, folderName) => {
-    navigate(`/dashboard/files/${folderId}`, { 
-      state: { folderName, folderId } 
-    })
+    // Para usuarios regulares, navegar a la vista de carpeta
+    if (auth?.rol !== 'admin') {
+      navigate(`/dashboard/user-folder/${folderId}`, { 
+        state: { folderName, folderId } 
+      })
+    } else {
+      // Para administradores, navegar a la vista de archivos
+      navigate(`/dashboard/files/${folderId}`, { 
+        state: { folderName, folderId } 
+      })
+    }
   }
 
   console.log('🎯 Dashboard renderizando - loading:', loading, 'folders:', folders.length, 'auth.rol:', auth?.rol)
@@ -430,7 +484,7 @@ const Dashboard = () => {
   }
 
   // Dashboard para usuarios regulares
-  return (
+    return (
     <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <header className="bg-white shadow-lg w-full">
@@ -452,8 +506,8 @@ const Dashboard = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   Usuario Regular
-                </p>
-              </div>
+                    </p>
+                </div>
             </div>
             <button
               onClick={handleLogout}
@@ -467,7 +521,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      {/* Main Content */}
+            {/* Main Content */}
       <main className="w-full py-6 px-4 sm:px-6 lg:px-8">
         {/* Información de la Cuenta */}
         <div className="mb-6">
@@ -481,8 +535,8 @@ const Dashboard = () => {
             <div className="mb-4">
               <p className="text-sm font-medium text-gray-500">Email:</p>
               <p className="text-lg text-gray-900">{auth?.email}</p>
-            </div>
-            <button
+                        </div>
+                        <button
               onClick={() => navigate('/dashboard/change-password')}
               className="inline-flex items-center px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
             >
@@ -490,8 +544,8 @@ const Dashboard = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z" />
               </svg>
               Cambiar Contraseña
-            </button>
-          </div>
+                        </button>
+                    </div>
         </div>
 
         {/* Tus Carpetas Asignadas */}
@@ -554,10 +608,10 @@ const Dashboard = () => {
               ))}
             </div>
           )}
+                </div>
+            </main>
         </div>
-      </main>
-    </div>
-  )
+    )
 }
 
 export default Dashboard 
