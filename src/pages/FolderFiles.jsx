@@ -146,8 +146,8 @@ const FolderFiles = () => {
   };
 
   const handleUpload = async () => {
-    if (!fileData.nombre.trim() || !fileData.descripcion.trim() || !fileData.archivo) {
-      toast.error('Por favor completa todos los campos y selecciona un archivo');
+    if (!fileData.nombre.trim() || !fileData.descripcion.trim() || !fileData.archivo || !fileData.clienteDestinatario) {
+      toast.error('Por favor completa todos los campos obligatorios: archivo, nombre, descripción y destinatario');
       return;
     }
 
@@ -456,20 +456,28 @@ const FolderFiles = () => {
                 {/* Cliente destinatario */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Cliente Destinatario *
+                    Cliente Destinatario <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={fileData.clienteDestinatario}
                     onChange={(e) => setFileData({ ...fileData, clienteDestinatario: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                      !fileData.clienteDestinatario 
+                        ? 'border-red-300 focus:ring-red-500' 
+                        : 'border-gray-300 focus:ring-blue-500'
+                    }`}
+                    required
                   >
-                    <option value="">Seleccionar cliente</option>
+                    <option value="">Seleccionar cliente *</option>
                     {users.map((user) => (
                       <option key={user._id} value={user._id}>
                         {user.companyName} ({user.email})
                       </option>
                     ))}
                   </select>
+                  {!fileData.clienteDestinatario && (
+                    <p className="mt-1 text-sm text-red-600">Este campo es obligatorio</p>
+                  )}
                 </div>
               </div>
 
@@ -486,8 +494,8 @@ const FolderFiles = () => {
                 </button>
                 <button
                   onClick={handleUpload}
-                  disabled={isUploading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center"
+                  disabled={isUploading || !fileData.nombre.trim() || !fileData.descripcion.trim() || !fileData.archivo || !fileData.clienteDestinatario}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                 >
                   {isUploading ? (
                     <>
