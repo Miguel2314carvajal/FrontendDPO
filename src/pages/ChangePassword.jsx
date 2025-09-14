@@ -12,6 +12,7 @@ const ChangePassword = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordErrors, setPasswordErrors] = useState({})
 
   const { logout } = useAuth()
   const navigate = useNavigate()
@@ -30,6 +31,27 @@ const ChangePassword = () => {
       return 'La contraseña debe contener al menos un número'
     }
     return null
+  }
+
+  // Validación en tiempo real
+  const handleNewPasswordChange = (value) => {
+    setNewPassword(value)
+    if (value) {
+      const error = validatePassword(value)
+      setPasswordErrors(prev => ({ ...prev, newPassword: error }))
+    } else {
+      setPasswordErrors(prev => ({ ...prev, newPassword: null }))
+    }
+  }
+
+  const handleConfirmPasswordChange = (value) => {
+    setConfirmPassword(value)
+    if (value && newPassword) {
+      const error = value !== newPassword ? 'Las contraseñas no coinciden' : null
+      setPasswordErrors(prev => ({ ...prev, confirmPassword: error }))
+    } else {
+      setPasswordErrors(prev => ({ ...prev, confirmPassword: null }))
+    }
   }
 
   const handleChangePassword = async () => {
@@ -68,7 +90,15 @@ const ChangePassword = () => {
       toast.success('Tu contraseña ha sido cambiada correctamente. Deberás iniciar sesión nuevamente.')
       
       // Cerrar sesión y redirigir al login
-      await logout()
+      try {
+        if (logout && typeof logout === 'function') {
+          await logout()
+        }
+      } catch (error) {
+        console.log('Error en logout, limpiando localStorage manualmente')
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+      }
       navigate('/')
     } catch (error) {
       console.error('Error cambiando contraseña:', error)
@@ -142,13 +172,16 @@ const ChangePassword = () => {
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      {showCurrentPassword ? (
+                    {showCurrentPassword ? (
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                      ) : (
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      )}
-                    </svg>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
@@ -162,24 +195,32 @@ const ChangePassword = () => {
                   <input
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    onChange={(e) => handleNewPasswordChange(e.target.value)}
                     placeholder="Ingresa tu nueva contraseña"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12 ${
+                      passwordErrors.newPassword ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowNewPassword(!showNewPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      {showNewPassword ? (
+                    {showNewPassword ? (
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                      ) : (
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      )}
-                    </svg>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
                   </button>
                 </div>
+                {passwordErrors.newPassword && (
+                  <p className="mt-1 text-sm text-red-600">{passwordErrors.newPassword}</p>
+                )}
               </div>
 
               {/* Confirm New Password */}
@@ -191,24 +232,32 @@ const ChangePassword = () => {
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => handleConfirmPasswordChange(e.target.value)}
                     placeholder="Confirma tu nueva contraseña"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12 ${
+                      passwordErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      {showConfirmPassword ? (
+                    {showConfirmPassword ? (
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                      ) : (
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      )}
-                    </svg>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    )}
                   </button>
                 </div>
+                {passwordErrors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{passwordErrors.confirmPassword}</p>
+                )}
               </div>
 
               {/* Password Requirements */}
