@@ -10,6 +10,7 @@ import FileUpload from './pages/FileUpload'
 import FileManagement from './pages/FileManagement'
 import FolderFiles from './pages/FolderFiles'
 import UserFolderView from './pages/UserFolderView'
+import ChangePassword from './pages/ChangePassword'
 import { useContext } from 'react'
 
 function App() {
@@ -69,6 +70,12 @@ function App() {
               <Route path="/dashboard/user-folder/:folderId" element={
                 <ProtectedRoute>
                   <UserFolderView />
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/dashboard/change-password" element={
+                <ProtectedRoute>
+                  <ChangePassword />
                 </ProtectedRoute>
               } />
         </Routes>

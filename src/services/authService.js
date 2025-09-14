@@ -216,6 +216,20 @@ export const authService = {
       console.error('Error restableciendo contraseña:', error);
       throw error.response?.data || { mensaje: 'Error al restablecer contraseña' };
     }
+  },
+
+  // Cambiar contraseña del usuario actual
+  changePassword: async (currentPassword, newPassword) => {
+    try {
+      const response = await api.post('/api/users/cambiar-contrasena', {
+        currentPassword,
+        newPassword
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error cambiando contraseña:', error);
+      throw error.response?.data || { mensaje: 'Error al cambiar contraseña' };
+    }
   }
 };
 
