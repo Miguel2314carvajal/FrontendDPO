@@ -1,7 +1,14 @@
 import api from '../config/api.js';
 
 // Generar deviceId único para web (basado en localStorage)
+let cachedDeviceId = null;
+
 const generateDeviceId = () => {
+  // Usar cache si ya existe
+  if (cachedDeviceId) {
+    return cachedDeviceId;
+  }
+  
   let deviceId = localStorage.getItem('deviceId');
   
   if (!deviceId) {
@@ -13,6 +20,8 @@ const generateDeviceId = () => {
     console.log('📱 DeviceId existente reutilizado:', deviceId);
   }
   
+  // Cachear el deviceId
+  cachedDeviceId = deviceId;
   return deviceId;
 };
 
@@ -28,9 +37,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expirado, limpiar localStorage
+      // Token expirado, limpiar localStorage y cache
       localStorage.removeItem('user');
       localStorage.removeItem('token');
+      cachedDeviceId = null; // Limpiar cache del deviceId
       window.location.href = '/';
     }
     return Promise.reject(error);
@@ -230,6 +240,12 @@ export const authService = {
       console.error('Error cambiando contraseña:', error);
       throw error.response?.data || { mensaje: 'Error al cambiar contraseña' };
     }
+  },
+
+  // Limpiar cache del deviceId
+  clearDeviceIdCache: () => {
+    cachedDeviceId = null;
+    localStorage.removeItem('deviceId');
   }
 };
 

@@ -91,15 +91,30 @@ const ChangePassword = () => {
       
       // Cerrar sesión y redirigir al login
       try {
+        // Limpiar localStorage inmediatamente
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        
+        // Limpiar cache del deviceId
+        authService.clearDeviceIdCache()
+        
+        // Intentar logout si está disponible
         if (logout && typeof logout === 'function') {
           await logout()
         }
+        
+        // Redirigir al login con delay para que se vea el toast
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 1500)
+        
       } catch (error) {
-        console.log('Error en logout, limpiando localStorage manualmente')
-        localStorage.removeItem('user')
-        localStorage.removeItem('token')
+        console.log('Error en logout, redirigiendo manualmente')
+        // Redirigir al login de todas formas
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 1500)
       }
-      navigate('/')
     } catch (error) {
       console.error('Error cambiando contraseña:', error)
       toast.error(error.msg || 'No se pudo cambiar la contraseña. Inténtalo nuevamente.')
