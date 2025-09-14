@@ -10,17 +10,62 @@ const Dashboard = () => {
   const { auth, cerrarSesion } = useAuth()
   const [folders, setFolders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalFolders: 0,
+    totalFiles: 0
+  })
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Solo cargar carpetas si no es administrador
-    if (auth?.rol !== 'admin') {
-      loadFolders()
+    // Cargar estadísticas para administradores
+    if (auth?.rol === 'admin') {
+      loadStats()
     } else {
-      // Para administradores, no cargar carpetas (no las necesitan)
-      setLoading(false)
+      // Para usuarios regulares, cargar carpetas
+      loadFolders()
     }
   }, [auth])
+
+  const loadStats = async () => {
+    try {
+      setLoading(true)
+      console.log('🔄 Cargando estadísticas...')
+      
+      const [usersResponse, foldersResponse] = await Promise.all([
+        fetch('/api/users', {
+          headers: {
+            'Authorization': `Bearer ${auth.token}`
+          }
+        }).then(res => res.json()),
+        folderService.getFolders()
+      ])
+      
+      const users = usersResponse.users || usersResponse
+      const folders = foldersResponse.carpetas || foldersResponse
+      
+      // Calcular total de archivos
+      const totalFiles = folders.reduce((acc, folder) => acc + (folder.files?.length || 0), 0)
+      
+      setStats({
+        totalUsers: users.length,
+        totalFolders: folders.length,
+        totalFiles
+      })
+      
+      console.log('📊 Estadísticas cargadas:', {
+        totalUsers: users.length,
+        totalFolders: folders.length,
+        totalFiles
+      })
+      
+    } catch (error) {
+      console.error('❌ Error cargando estadísticas:', error)
+      toast.error('Error al cargar estadísticas')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const loadFolders = async () => {
     try {
@@ -131,7 +176,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="ml-3">
-                    <p className="text-xl font-bold text-blue-600">5</p>
+                    <p className="text-xl font-bold text-blue-600">{stats.totalUsers}</p>
                     <p className="text-xs font-medium text-gray-900">Total Usuarios</p>
                   </div>
                 </div>
@@ -147,7 +192,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="ml-3">
-                    <p className="text-xl font-bold text-green-600">8</p>
+                    <p className="text-xl font-bold text-green-600">{stats.totalFolders}</p>
                     <p className="text-xs font-medium text-gray-900">Carpetas</p>
                   </div>
                 </div>
@@ -163,7 +208,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                   <div className="ml-3">
-                    <p className="text-xl font-bold text-orange-600">5</p>
+                    <p className="text-xl font-bold text-orange-600">{stats.totalFiles}</p>
                     <p className="text-xs font-medium text-gray-900">Archivos</p>
                   </div>
                 </div>
