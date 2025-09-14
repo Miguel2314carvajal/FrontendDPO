@@ -48,7 +48,9 @@ const UserManagement = () => {
   const loadFolders = async () => {
     try {
       const response = await folderService.getFolders();
-      setAvailableFolders(response.carpetas || []);
+      // Filtrar solo carpetas principales (sin parentFolder) - igual que en móvil
+      const mainFolders = (response.carpetas || []).filter(folder => !folder.parentFolder);
+      setAvailableFolders(mainFolders);
     } catch (error) {
       console.error('Error cargando carpetas:', error);
       toast.error('Error al cargar carpetas');
