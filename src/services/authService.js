@@ -203,6 +203,19 @@ export const authService = {
       console.error('Error eliminando usuario:', error);
       throw error.response?.data || { mensaje: 'Error al eliminar usuario' };
     }
+  },
+
+  // Restablecer contraseña de usuario (solo administradores)
+  resetUserPassword: async (userId, newPassword) => {
+    try {
+      const response = await api.post(`/api/users/reset-password/${userId}`, {
+        newPassword
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error restableciendo contraseña:', error);
+      throw error.response?.data || { mensaje: 'Error al restablecer contraseña' };
+    }
   }
 };
 
