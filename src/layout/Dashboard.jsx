@@ -34,7 +34,7 @@ const Dashboard = () => {
       console.log('🔄 Cargando estadísticas...')
       
       const [usersResponse, foldersResponse] = await Promise.all([
-        fetch('/api/users', {
+        fetch('https://auditorias-backend-production.up.railway.app/api/users/listar', {
           headers: {
             'Authorization': `Bearer ${auth.token}`
           }
@@ -98,9 +98,45 @@ const Dashboard = () => {
           !folder.parentFolder || folder.parentFolder === null
         )
         
+        // Calcular total de archivos para cada carpeta (incluyendo subcarpetas)
+        const foldersWithTotalFiles = await Promise.all(
+          mainFolders.map(async (folder) => {
+            try {
+              // Obtener todas las subcarpetas de esta carpeta principal
+              const allFolders = await folderService.getFolders()
+              const subfolders = allFolders.carpetas?.filter(f => 
+                f.parentFolder === folder._id || 
+                (typeof f.parentFolder === 'object' && f.parentFolder?._id === folder._id)
+              ) || []
+              
+              // Sumar archivos de la carpeta principal
+              let totalFiles = folder.files?.length || 0
+              
+              // Sumar archivos de cada subcarpeta
+              for (const subfolder of subfolders) {
+                const subfolderData = await folderService.getFolder(subfolder._id)
+                totalFiles += subfolderData.files?.length || 0
+              }
+              
+              console.log(`📊 Total archivos en ${folder.name}: ${totalFiles} (${folder.files?.length || 0} principales + ${totalFiles - (folder.files?.length || 0)} de subcarpetas)`)
+              
+              return {
+                ...folder,
+                totalFiles: totalFiles
+              }
+            } catch (error) {
+              console.error(`❌ Error calculando archivos para ${folder.name}:`, error)
+              return {
+                ...folder,
+                totalFiles: folder.files?.length || 0
+              }
+            }
+          })
+        )
+        
         console.log('📊 Carpetas válidas encontradas:', validFolders.length)
         console.log('📁 Carpetas principales (sin subcarpetas):', mainFolders.length)
-        setFolders(mainFolders)
+        setFolders(foldersWithTotalFiles)
       } else {
         console.log('⚠️ Usuario no tiene carpetas asignadas')
         setFolders([])
@@ -599,7 +635,7 @@ const Dashboard = () => {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{folder.name}</h3>
                   <p className="text-sm text-gray-500 mb-1">
-                    📄 {folder.files?.length || folder.files || 0} archivos
+                    📄 {folder.totalFiles || folder.files?.length || folder.files || 0} archivos
                   </p>
                   <p className="text-xs text-gray-400">
                     {new Date(folder.createdAt || folder.created_at).toLocaleDateString('es-ES')}

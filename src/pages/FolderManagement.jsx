@@ -67,7 +67,43 @@ const FolderManagement = () => {
   const loadFolders = async () => {
     try {
       const data = await folderService.getFolders();
-      setFolders(data.carpetas || []);
+      const folders = data.carpetas || [];
+      
+      // Calcular total de archivos para cada carpeta (incluyendo subcarpetas)
+      const foldersWithTotalFiles = await Promise.all(
+        folders.map(async (folder) => {
+          try {
+            // Obtener todas las subcarpetas de esta carpeta
+            const subfolders = folders.filter(f => 
+              f.parentFolder === folder._id || 
+              (typeof f.parentFolder === 'object' && f.parentFolder?._id === folder._id)
+            );
+            
+            // Sumar archivos de la carpeta principal
+            let totalFiles = folder.files?.length || 0;
+            
+            // Sumar archivos de cada subcarpeta
+            for (const subfolder of subfolders) {
+              totalFiles += subfolder.files?.length || 0;
+            }
+            
+            console.log(`📊 Total archivos en ${folder.name}: ${totalFiles} (${folder.files?.length || 0} principales + ${totalFiles - (folder.files?.length || 0)} de subcarpetas)`);
+            
+            return {
+              ...folder,
+              totalFiles: totalFiles
+            };
+          } catch (error) {
+            console.error(`❌ Error calculando archivos para ${folder.name}:`, error);
+            return {
+              ...folder,
+              totalFiles: folder.files?.length || 0
+            };
+          }
+        })
+      );
+      
+      setFolders(foldersWithTotalFiles);
     } catch (error) {
       console.error('Error cargando carpetas:', error);
       toast.error('Error al cargar carpetas');
@@ -397,7 +433,7 @@ const FolderManagement = () => {
                   <div className="ml-3">
                     <h3 className="text-lg font-medium text-gray-900">{folder.name}</h3>
                     <p className="text-sm text-gray-500">
-                      {folder.files?.length || 0} archivos
+                      {folder.totalFiles || folder.files?.length || 0} archivos
                     </p>
                   </div>
                 </div>

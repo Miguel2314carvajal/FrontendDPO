@@ -30,6 +30,8 @@ const UserFolderView = () => {
       
       const folderData = await folderService.getFolder(folderId)
       console.log('✅ Carpeta cargada:', folderData)
+      console.log('📄 Archivos en la carpeta:', folderData.files)
+      console.log('📊 Cantidad de archivos:', folderData.files?.length || 0)
       
       setFolder(folderData)
       
