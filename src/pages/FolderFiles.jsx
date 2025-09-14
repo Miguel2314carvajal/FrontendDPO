@@ -28,6 +28,9 @@ const FolderFiles = () => {
   });
   const [users, setUsers] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(''); // Estado para el buscador de archivos
+  const [clientSearchQuery, setClientSearchQuery] = useState(''); // Estado para el buscador de destinatarios
+  const [showClientSelector, setShowClientSelector] = useState(false); // Estado para mostrar/ocultar selector de clientes
 
   useEffect(() => {
     if (folderId) {
@@ -324,12 +327,42 @@ const FolderFiles = () => {
 
         {/* Archivos */}
         <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
-            <svg className="h-5 w-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-            </svg>
-            Archivos
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+              <svg className="h-5 w-5 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+              </svg>
+              Archivos
+            </h3>
+            
+            {/* Buscador de archivos */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                className="block w-64 pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                placeholder="Buscar archivos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
           
           {files.length === 0 ? (
             <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
@@ -340,7 +373,13 @@ const FolderFiles = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
-              {files.map((file) => (
+              {files
+                .filter(file => 
+                  file.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  file.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  file.clienteDestinatario?.companyName?.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map((file) => (
                 <div key={file._id} className="bg-white rounded-lg shadow-sm border p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center flex-1">
@@ -458,23 +497,89 @@ const FolderFiles = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Cliente Destinatario <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={fileData.clienteDestinatario}
-                    onChange={(e) => setFileData({ ...fileData, clienteDestinatario: e.target.value })}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                      !fileData.clienteDestinatario 
-                        ? 'border-red-300 focus:ring-red-500' 
-                        : 'border-gray-300 focus:ring-blue-500'
-                    }`}
-                    required
-                  >
-                    <option value="">Seleccionar cliente *</option>
-                    {users.map((user) => (
-                      <option key={user._id} value={user._id}>
-                        {user.companyName} ({user.email})
-                      </option>
-                    ))}
-                  </select>
+                  
+                  {/* Dropdown con buscador */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowClientSelector(!showClientSelector)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 text-left flex items-center justify-between ${
+                        !fileData.clienteDestinatario 
+                          ? 'border-red-300 focus:ring-red-500' 
+                          : 'border-gray-300 focus:ring-blue-500'
+                      }`}
+                    >
+                      <span className={fileData.clienteDestinatario ? 'text-gray-900' : 'text-gray-500'}>
+                        {fileData.clienteDestinatario 
+                          ? users.find(u => u._id === fileData.clienteDestinatario)?.companyName + ' (' + users.find(u => u._id === fileData.clienteDestinatario)?.email + ')'
+                          : 'Seleccionar cliente *'
+                        }
+                      </span>
+                      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    
+                    {showClientSelector && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        {/* Buscador de clientes */}
+                        <div className="p-3 border-b border-gray-200">
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                              </svg>
+                            </div>
+                            <input
+                              type="text"
+                              className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                              placeholder="Buscar cliente..."
+                              value={clientSearchQuery}
+                              onChange={(e) => setClientSearchQuery(e.target.value)}
+                            />
+                            {clientSearchQuery && (
+                              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setClientSearchQuery('')}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Lista de clientes filtrados */}
+                        {users
+                          .filter(user => 
+                            user.companyName?.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
+                            user.email?.toLowerCase().includes(clientSearchQuery.toLowerCase())
+                          )
+                          .map((user) => (
+                            <button
+                              key={user._id}
+                              type="button"
+                              onClick={() => {
+                                setFileData({ ...fileData, clienteDestinatario: user._id });
+                                setShowClientSelector(false);
+                                setClientSearchQuery('');
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="text-sm text-gray-900">
+                                {user.companyName}
+                              </div>
+                              <div className="text-xs text-gray-500">{user.email}</div>
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                  
                   {!fileData.clienteDestinatario && (
                     <p className="mt-1 text-sm text-red-600">Este campo es obligatorio</p>
                   )}
