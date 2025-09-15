@@ -17,18 +17,27 @@ const NewUser = () => {
     email: '',
     companyName: '',
     maxSessions: 3,
+    category: 'profesional_independiente',
   });
 
   useEffect(() => {
     loadFolders();
   }, []);
 
-  const loadFolders = async () => {
+  const loadFolders = async (category = null) => {
     try {
-      const response = await folderService.getFolders();
-      // Filtrar solo carpetas principales (sin parentFolder)
-      const mainFolders = response.carpetas?.filter(folder => !folder.parentFolder) || [];
-      setFolders(mainFolders);
+      let response;
+      if (category) {
+        // Cargar carpetas por categoría
+        response = await folderService.getFoldersByCategory(category);
+        const mainFolders = response.folders?.filter(folder => !folder.parentFolder) || [];
+        setFolders(mainFolders);
+      } else {
+        // Cargar todas las carpetas
+        response = await folderService.getFolders();
+        const mainFolders = response.carpetas?.filter(folder => !folder.parentFolder) || [];
+        setFolders(mainFolders);
+      }
     } catch (error) {
       console.error('Error cargando carpetas:', error);
       toast.error('Error al cargar carpetas');
@@ -37,6 +46,13 @@ const NewUser = () => {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Si se cambia la categoría, cargar carpetas de esa categoría
+    if (field === 'category') {
+      loadFolders(value);
+      // Limpiar carpetas seleccionadas al cambiar categoría
+      setSelectedFolders([]);
+    }
   };
 
   const handleFolderSelect = (folder) => {
@@ -58,9 +74,9 @@ const NewUser = () => {
       return;
     }
 
+    // Si no se seleccionaron carpetas específicas, se asignarán automáticamente por categoría
     if (selectedFolders.length === 0) {
-      toast.error('Debes seleccionar al menos una carpeta para el usuario');
-      return;
+      console.log('No se seleccionaron carpetas específicas, se asignarán automáticamente por categoría:', formData.category);
     }
 
     setLoading(true);
@@ -70,12 +86,18 @@ const NewUser = () => {
         email: formData.email,
         companyName: formData.companyName,
         maxSessions: formData.maxSessions,
+        category: formData.category,
         folders: selectedFolders.map(folder => folder._id)
       };
 
       await authService.createUser(userData);
+      
+      const folderMessage = selectedFolders.length > 0 
+        ? `con acceso a ${selectedFolders.length} carpeta${selectedFolders.length !== 1 ? 's' : ''} específica${selectedFolders.length !== 1 ? 's' : ''}`
+        : `con acceso automático a todas las carpetas de la categoría "${formData.category.replace('_', ' ')}"`;
+      
       toast.success(
-        `Usuario creado correctamente con acceso a ${selectedFolders.length} carpeta${selectedFolders.length !== 1 ? 's' : ''}. Se enviará un email con las credenciales temporales.`
+        `Usuario creado correctamente ${folderMessage}. Se enviará un email con las credenciales temporales.`
       );
       navigate('/dashboard/users');
     } catch (error) {
@@ -92,11 +114,11 @@ const NewUser = () => {
 
   const getDisplayText = () => {
     if (selectedFolders.length === 0) {
-      return 'Seleccionar carpetas';
+      return 'Seleccionar carpetas adicionales (opcional)';
     } else if (selectedFolders.length === 1) {
       return selectedFolders[0].name;
     } else {
-      return `${selectedFolders.length} carpetas seleccionadas`;
+      return `${selectedFolders.length} carpetas adicionales seleccionadas`;
     }
   };
 
@@ -195,6 +217,34 @@ const NewUser = () => {
               </div>
             </div>
 
+            {/* Selección de Categoría */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center mb-6">
+                <svg className="h-6 w-6 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <h2 className="text-xl font-bold text-gray-900">Categoría del Usuario</h2>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Categoría *
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="profesional_independiente">Profesional Independiente</option>
+                  <option value="transporte_escolar">Transporte Escolar</option>
+                  <option value="encargador_seguros">Encargador de Seguros</option>
+                </select>
+                <p className="text-sm text-gray-600 mt-2">
+                  Esta categoría determinará qué carpetas se asignarán automáticamente al usuario
+                </p>
+              </div>
+            </div>
+
             {/* Asignación de Carpetas */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center mb-6">
@@ -206,7 +256,7 @@ const NewUser = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Carpetas Asignadas *
+                  Carpetas Adicionales (Opcional)
                 </label>
                 <button
                   type="button"
@@ -236,8 +286,8 @@ const NewUser = () => {
                   <h3 className="text-lg font-medium text-blue-800 mb-2">Información importante:</h3>
                   <ul className="text-blue-700 space-y-1">
                     <li>• El usuario recibirá un email con credenciales temporales</li>
-                    <li>• Se le asignará acceso a todas las carpetas seleccionadas</li>
-                    <li>• Puedes seleccionar múltiples carpetas usando los checkboxes</li>
+                    <li>• Se le asignarán automáticamente todas las carpetas de la categoría seleccionada</li>
+                    <li>• Puedes seleccionar carpetas adicionales específicas si es necesario</li>
                     <li>• Podrá cambiar su contraseña después del primer login</li>
                   </ul>
                 </div>

@@ -128,5 +128,18 @@ export const folderService = {
       console.error('❌ Error en debug:', error);
       throw error.response?.data || { mensaje: 'Error en debug' };
     }
+  },
+
+  // Obtener carpetas por categoría
+  getFoldersByCategory: async (category) => {
+    try {
+      console.log('🔄 Obteniendo carpetas para categoría:', category);
+      const response = await api.get(`/api/folders/categoria/${category}`);
+      console.log('✅ Carpetas por categoría:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error obteniendo carpetas por categoría:', error);
+      throw error.response?.data || { mensaje: 'Error al obtener carpetas por categoría' };
+    }
   }
 };

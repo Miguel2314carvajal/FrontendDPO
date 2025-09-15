@@ -18,7 +18,8 @@ const FolderManagement = () => {
     name: '',
     parentFolder: null,
     description: '',
-    subfolders: []
+    subfolders: [],
+    category: 'profesional_independiente'
   });
   const [assignData, setAssignData] = useState({
     selectedUsers: []
@@ -136,6 +137,7 @@ const FolderManagement = () => {
       const mainFolder = await folderService.createFolder({
         name: formData.name.trim(),
         parentFolder: formData.parentFolder || null,
+        category: formData.category,
         description: description,
         usuarios: []
       });
@@ -147,6 +149,7 @@ const FolderManagement = () => {
             await folderService.createFolder({
               name: subfolderName.trim(),
               parentFolder: mainFolder.folder._id,
+              category: formData.category,
               usuarios: []
             });
           }
@@ -160,7 +163,7 @@ const FolderManagement = () => {
 
       toast.success(message);
       setShowCreateModal(false);
-      setFormData({ name: '', parentFolder: null, description: '', subfolders: [] });
+      setFormData({ name: '', parentFolder: null, description: '', subfolders: [], category: 'profesional_independiente' });
       loadFolders();
     } catch (error) {
       console.error('Error creando carpeta:', error);
@@ -533,6 +536,21 @@ const FolderManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Ej: Documentos Básicos"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Categoría *
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="profesional_independiente">Profesional Independiente</option>
+                    <option value="transporte_escolar">Transporte Escolar</option>
+                    <option value="encargador_seguros">Encargador de Seguros</option>
+                  </select>
                 </div>
 
                 <div>
