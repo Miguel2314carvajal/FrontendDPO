@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const NestedFolderCreator = ({ 
   isOpen, 
@@ -14,16 +14,9 @@ const NestedFolderCreator = ({
     subfolders: []
   });
 
-  const [editingSubfolder, setEditingSubfolder] = useState({
-    index: null,
-    name: '',
-    subfolders: []
-  });
-
-  const [nestedInputs, setNestedInputs] = useState({});
   const [mainSubfolderInput, setMainSubfolderInput] = useState('');
-  const [isAddingSubfolder, setIsAddingSubfolder] = useState(false);
-  const [addingNestedSubfolder, setAddingNestedSubfolder] = useState(null);
+  const [nestedInputs, setNestedInputs] = useState({});
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Debug: Log cuando cambie el estado de subcarpetas
   useEffect(() => {
@@ -34,20 +27,17 @@ const NestedFolderCreator = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // Función para verificar si existe una subcarpeta con el mismo nombre
-  const checkSubfolderExists = useCallback((name, subfolders) => {
-    return subfolders.find(sub => 
+  // Función para verificar duplicados en un array de subcarpetas
+  const checkDuplicate = (name, subfolders) => {
+    return subfolders.some(sub => 
       sub.name.toLowerCase() === name.toLowerCase()
     );
-  }, []);
+  };
 
+  // Agregar subcarpeta principal
   const addSubfolder = () => {
-    // Prevenir múltiples clics
-    if (isAddingSubfolder) {
-      console.log('⏳ Ya se está agregando una subcarpeta...');
-      return;
-    }
-
+    if (isProcessing) return;
+    
     const trimmedName = mainSubfolderInput.trim();
     
     if (!trimmedName) {
@@ -55,23 +45,18 @@ const NestedFolderCreator = ({
       return;
     }
 
-    setIsAddingSubfolder(true);
     console.log('🔍 Verificando subcarpeta:', trimmedName);
     console.log('📁 Subcarpetas actuales:', formData.subfolders.map(s => s.name));
     
-    // Verificar duplicados en el estado actual
-    const existingSubfolder = formData.subfolders.find(sub => 
-      sub.name.toLowerCase() === trimmedName.toLowerCase()
-    );
-    
-    if (existingSubfolder) {
-      console.log('❌ Subcarpeta duplicada encontrada:', existingSubfolder);
+    // Verificar duplicados
+    if (checkDuplicate(trimmedName, formData.subfolders)) {
+      console.log('❌ Subcarpeta duplicada encontrada');
       alert('Ya existe una subcarpeta con ese nombre');
-      setMainSubfolderInput(''); // Limpiar el input
-      setIsAddingSubfolder(false);
-      return; // Salir sin hacer nada
+      setMainSubfolderInput('');
+      return;
     }
 
+    setIsProcessing(true);
     console.log('✅ Creando nueva subcarpeta:', trimmedName);
 
     const newSubfolder = {
@@ -80,35 +65,26 @@ const NestedFolderCreator = ({
       subfolders: []
     };
 
-    // Actualizar el estado
-    setFormData(prev => {
-      const newSubfolders = [...prev.subfolders, newSubfolder];
-      console.log('📁 Nuevo estado:', newSubfolders.map(s => s.name));
-      
-      return {
-        ...prev,
-        subfolders: newSubfolders
-      };
-    });
+    setFormData(prev => ({
+      ...prev,
+      subfolders: [...prev.subfolders, newSubfolder]
+    }));
 
     setMainSubfolderInput('');
-    setIsAddingSubfolder(false);
+    setIsProcessing(false);
   };
 
+  // Mostrar input para subcarpeta anidada
   const addNestedSubfolder = (parentIndex) => {
-    // Mostrar input para la subcarpeta anidada
     setNestedInputs(prev => ({
       ...prev,
       [parentIndex]: ''
     }));
   };
 
+  // Guardar subcarpeta anidada
   const saveNestedSubfolder = (parentIndex) => {
-    // Prevenir múltiples clics
-    if (addingNestedSubfolder === parentIndex) {
-      console.log('⏳ Ya se está agregando una subcarpeta anidada...');
-      return;
-    }
+    if (isProcessing) return;
 
     const subfolderName = nestedInputs[parentIndex];
     if (!subfolderName || !subfolderName.trim()) {
@@ -118,49 +94,39 @@ const NestedFolderCreator = ({
     const trimmedName = subfolderName.trim();
     console.log('🔍 Verificando subcarpeta anidada:', trimmedName, 'en índice:', parentIndex);
 
-    setAddingNestedSubfolder(parentIndex);
+    // Obtener la subcarpeta padre
+    const parentSubfolder = formData.subfolders[parentIndex];
+    if (!parentSubfolder) {
+      console.error('Índice de subcarpeta padre inválido:', parentIndex);
+      return;
+    }
 
-    // Usar setFormData para acceder al estado actual de forma segura
+    // Asegurar que existe el array de subcarpetas
+    const currentSubfolders = parentSubfolder.subfolders || [];
+    console.log('📁 Subcarpetas existentes en este nivel:', currentSubfolders.map(s => s.name));
+    
+    // Verificar duplicados
+    if (checkDuplicate(trimmedName, currentSubfolders)) {
+      console.log('❌ Subcarpeta anidada duplicada encontrada');
+      alert('Ya existe una subcarpeta con ese nombre');
+      return;
+    }
+
+    setIsProcessing(true);
+    console.log('✅ Creando subcarpeta anidada:', trimmedName);
+
+    const newSubfolder = {
+      name: trimmedName,
+      category: formData.category,
+      subfolders: []
+    };
+
     setFormData(prev => {
       const newSubfolders = [...prev.subfolders];
-      
-      // Verificar que el índice existe y el objeto es válido
-      if (!newSubfolders[parentIndex] || typeof newSubfolders[parentIndex] !== 'object') {
-        console.error('Índice de subcarpeta padre inválido:', parentIndex);
-        setAddingNestedSubfolder(null);
-        return prev;
-      }
-
-      // Asegurar que existe el array de subcarpetas
-      if (!newSubfolders[parentIndex].subfolders) {
-        newSubfolders[parentIndex].subfolders = [];
-      }
-      
-      console.log('📁 Subcarpetas existentes en este nivel:', newSubfolders[parentIndex].subfolders.map(s => s.name));
-      
-      // Verificar que no existe ya una subcarpeta con el mismo nombre
-      const existingSubfolder = newSubfolders[parentIndex].subfolders.find(
-        sub => sub.name.toLowerCase() === trimmedName.toLowerCase()
-      );
-      
-      if (existingSubfolder) {
-        console.log('❌ Subcarpeta anidada duplicada encontrada:', existingSubfolder);
-        alert('Ya existe una subcarpeta con ese nombre');
-        setAddingNestedSubfolder(null);
-        return prev; // No hacer cambios
-      }
-
-      console.log('✅ Creando subcarpeta anidada:', trimmedName);
-
-      const newSubfolder = {
-        name: trimmedName,
-        category: prev.category,
-        subfolders: []
+      newSubfolders[parentIndex] = {
+        ...newSubfolders[parentIndex],
+        subfolders: [...(newSubfolders[parentIndex].subfolders || []), newSubfolder]
       };
-
-      newSubfolders[parentIndex].subfolders.push(newSubfolder);
-      console.log('✅ Subcarpeta anidada agregada exitosamente');
-      
       return { ...prev, subfolders: newSubfolders };
     });
 
@@ -171,9 +137,10 @@ const NestedFolderCreator = ({
       return newInputs;
     });
 
-    setAddingNestedSubfolder(null);
+    setIsProcessing(false);
   };
 
+  // Cancelar subcarpeta anidada
   const cancelNestedSubfolder = (parentIndex) => {
     setNestedInputs(prev => {
       const newInputs = { ...prev };
@@ -182,6 +149,7 @@ const NestedFolderCreator = ({
     });
   };
 
+  // Eliminar subcarpeta
   const removeSubfolder = (index) => {
     setFormData(prev => ({
       ...prev,
@@ -189,10 +157,14 @@ const NestedFolderCreator = ({
     }));
   };
 
+  // Eliminar subcarpeta anidada
   const removeNestedSubfolder = (parentIndex, subIndex) => {
     setFormData(prev => {
       const newSubfolders = [...prev.subfolders];
-      newSubfolders[parentIndex].subfolders = newSubfolders[parentIndex].subfolders.filter((_, i) => i !== subIndex);
+      newSubfolders[parentIndex] = {
+        ...newSubfolders[parentIndex],
+        subfolders: newSubfolders[parentIndex].subfolders.filter((_, i) => i !== subIndex)
+      };
       return { ...prev, subfolders: newSubfolders };
     });
   };
@@ -218,25 +190,17 @@ const NestedFolderCreator = ({
       description: '',
       subfolders: []
     });
-    setEditingSubfolder({
-      index: null,
-      name: '',
-      subfolders: []
-    });
     setNestedInputs({});
     setMainSubfolderInput('');
-    setIsAddingSubfolder(false);
-    setAddingNestedSubfolder(null);
+    setIsProcessing(false);
   };
 
   const renderSubfolderTree = (subfolders, level = 0) => {
-    // Verificar que subfolders es un array válido
     if (!Array.isArray(subfolders) || subfolders.length === 0) {
       return null;
     }
 
     return subfolders.map((subfolder, index) => {
-      // Verificar que subfolder es un objeto válido
       if (!subfolder || typeof subfolder !== 'object' || !subfolder.name) {
         console.warn('Subcarpeta inválida en índice:', index, subfolder);
         return null;
@@ -258,6 +222,7 @@ const NestedFolderCreator = ({
                 onClick={() => addNestedSubfolder(index)}
                 className="p-1 text-green-600 hover:bg-green-100 rounded"
                 title="Agregar subcarpeta"
+                disabled={isProcessing}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -268,6 +233,7 @@ const NestedFolderCreator = ({
                 onClick={() => removeSubfolder(index)}
                 className="p-1 text-red-600 hover:bg-red-100 rounded"
                 title="Eliminar subcarpeta"
+                disabled={isProcessing}
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -301,18 +267,19 @@ const NestedFolderCreator = ({
                 <button
                   type="button"
                   onClick={() => saveNestedSubfolder(index)}
-                  disabled={addingNestedSubfolder === index}
+                  disabled={isProcessing}
                   className={`px-3 py-2 rounded-md text-sm ${
-                    addingNestedSubfolder === index
+                    isProcessing
                       ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
                 >
-                  {addingNestedSubfolder === index ? '...' : '✓'}
+                  {isProcessing ? '...' : '✓'}
                 </button>
                 <button
                   type="button"
                   onClick={() => cancelNestedSubfolder(index)}
+                  disabled={isProcessing}
                   className="px-3 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm"
                 >
                   ✕
@@ -329,7 +296,7 @@ const NestedFolderCreator = ({
           )}
         </div>
       );
-    }).filter(Boolean); // Filtrar elementos null/undefined
+    }).filter(Boolean);
   };
 
   if (!isOpen) return null;
@@ -427,14 +394,14 @@ const NestedFolderCreator = ({
                 <button
                   type="button"
                   onClick={addSubfolder}
-                  disabled={isAddingSubfolder}
+                  disabled={isProcessing}
                   className={`px-4 py-2 rounded-md ${
-                    isAddingSubfolder 
+                    isProcessing 
                       ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
                       : 'bg-blue-600 text-white hover:bg-blue-700'
                   }`}
                 >
-                  {isAddingSubfolder ? 'Agregando...' : 'Agregar'}
+                  {isProcessing ? 'Agregando...' : 'Agregar'}
                 </button>
               </div>
 
