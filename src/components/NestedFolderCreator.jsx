@@ -29,8 +29,9 @@ const NestedFolderCreator = ({
 
   // Función para verificar duplicados
   const checkDuplicate = (name, subfolders) => {
+    if (!Array.isArray(subfolders)) return false;
     return subfolders.some(sub => 
-      sub.name.toLowerCase() === name.toLowerCase()
+      sub && sub.name && sub.name.toLowerCase() === name.toLowerCase()
     );
   };
 
@@ -76,10 +77,16 @@ const NestedFolderCreator = ({
 
   // Mostrar input para subcarpeta anidada
   const showNestedInput = (path) => {
-    setActiveInputs(prev => ({
-      ...prev,
-      [path]: ''
-    }));
+    // Ocultar todos los inputs activos primero
+    setActiveInputs({});
+    
+    // Mostrar el nuevo input
+    setTimeout(() => {
+      setActiveInputs(prev => ({
+        ...prev,
+        [path]: ''
+      }));
+    }, 0);
   };
 
   // Ocultar input para subcarpeta anidada
@@ -103,7 +110,7 @@ const NestedFolderCreator = ({
     const trimmedName = subfolderName.trim();
     console.log('🔍 Verificando subcarpeta anidada:', trimmedName, 'en ruta:', path);
 
-    // Obtener las subcarpetas en el nivel correcto
+    // Verificar duplicados ANTES de hacer cualquier cambio
     const pathArray = path.split('-').map(Number);
     let currentSubfolders = formData.subfolders;
     
@@ -126,7 +133,6 @@ const NestedFolderCreator = ({
       return;
     }
 
-    setIsProcessing(true);
     console.log('✅ Creando subcarpeta anidada:', trimmedName);
 
     const newSubfolder = {
@@ -135,9 +141,26 @@ const NestedFolderCreator = ({
       subfolders: []
     };
 
-    // Actualizar el estado de forma recursiva
+    // Actualizar el estado de forma segura
     setFormData(prev => {
       const newSubfolders = [...prev.subfolders];
+      
+      // Verificar nuevamente en el estado actual
+      let currentSubfoldersInState = newSubfolders;
+      for (let i = 0; i < pathArray.length - 1; i++) {
+        if (currentSubfoldersInState[pathArray[i]] && currentSubfoldersInState[pathArray[i]].subfolders) {
+          currentSubfoldersInState = currentSubfoldersInState[pathArray[i]].subfolders;
+        } else {
+          console.error('Ruta inválida en estado actual:', path);
+          return prev;
+        }
+      }
+
+      // Verificar duplicados en el estado actual
+      if (checkDuplicate(trimmedName, currentSubfoldersInState)) {
+        console.log('❌ Duplicado encontrado en estado actual');
+        return prev; // No hacer cambios
+      }
       
       // Función recursiva para actualizar
       const updateSubfolders = (subfolders, path, newSubfolder) => {
@@ -166,7 +189,6 @@ const NestedFolderCreator = ({
 
     // Ocultar el input
     hideNestedInput(path);
-    setIsProcessing(false);
   };
 
   // Eliminar subcarpeta
@@ -258,7 +280,11 @@ const NestedFolderCreator = ({
             <div className="flex items-center space-x-1">
               <button
                 type="button"
-                onClick={() => showNestedInput(currentPath)}
+                onClick={() => {
+                  if (!isProcessing && !hasNestedInput) {
+                    showNestedInput(currentPath);
+                  }
+                }}
                 className="p-1 text-green-600 hover:bg-green-100 rounded"
                 title="Agregar subcarpeta"
                 disabled={isProcessing || hasNestedInput}
