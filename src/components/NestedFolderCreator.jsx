@@ -20,6 +20,8 @@ const NestedFolderCreator = ({
     subfolders: []
   });
 
+  const [nestedInputs, setNestedInputs] = useState({});
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -46,9 +48,18 @@ const NestedFolderCreator = ({
   };
 
   const addNestedSubfolder = (parentIndex) => {
-    if (editingSubfolder.name.trim()) {
+    // Mostrar input para la subcarpeta anidada
+    setNestedInputs(prev => ({
+      ...prev,
+      [parentIndex]: ''
+    }));
+  };
+
+  const saveNestedSubfolder = (parentIndex) => {
+    const subfolderName = nestedInputs[parentIndex];
+    if (subfolderName && subfolderName.trim()) {
       const newSubfolder = {
-        name: editingSubfolder.name.trim(),
+        name: subfolderName.trim(),
         category: formData.category,
         subfolders: []
       };
@@ -62,12 +73,21 @@ const NestedFolderCreator = ({
         return { ...prev, subfolders: newSubfolders };
       });
 
-      setEditingSubfolder({
-        index: null,
-        name: '',
-        subfolders: []
+      // Limpiar el input
+      setNestedInputs(prev => {
+        const newInputs = { ...prev };
+        delete newInputs[parentIndex];
+        return newInputs;
       });
     }
+  };
+
+  const cancelNestedSubfolder = (parentIndex) => {
+    setNestedInputs(prev => {
+      const newInputs = { ...prev };
+      delete newInputs[parentIndex];
+      return newInputs;
+    });
   };
 
   const removeSubfolder = (index) => {
@@ -133,6 +153,40 @@ const NestedFolderCreator = ({
             </button>
           </div>
         </div>
+
+        {/* Input para agregar subcarpeta anidada */}
+        {nestedInputs[index] !== undefined && (
+          <div className="ml-6 mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={nestedInputs[index] || ''}
+                onChange={(e) => setNestedInputs(prev => ({
+                  ...prev,
+                  [index]: e.target.value
+                }))}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="Nombre de la subcarpeta anidada"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => saveNestedSubfolder(index)}
+                className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+              >
+                ✓
+              </button>
+              <button
+                type="button"
+                onClick={() => cancelNestedSubfolder(index)}
+                className="px-3 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
         {subfolder.subfolders && subfolder.subfolders.length > 0 && (
           <div className="ml-4">
             {renderSubfolderTree(subfolder.subfolders, level + 1)}
