@@ -12,13 +12,10 @@ const FileUpload = () => {
   const [subfolders, setSubfolders] = useState([]);
   const [selectedMainFolder, setSelectedMainFolder] = useState(null);
   const [selectedSubfolder, setSelectedSubfolder] = useState(null);
-  const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showSubfolderModal, setShowSubfolderModal] = useState(false);
-  const [showClientSelector, setShowClientSelector] = useState(false);
-  const [clientSearchQuery, setClientSearchQuery] = useState(''); // Estado para el buscador de destinatarios
   const [folderSearchQuery, setFolderSearchQuery] = useState(''); // Estado para el buscador de carpetas
   
   // Formulario de archivo
@@ -26,8 +23,7 @@ const FileUpload = () => {
     nombre: '',
     descripcion: '',
     carpetaId: '',
-    archivo: null,
-    clienteDestinatario: ''
+    archivo: null
   });
 
   const { auth } = useAuth();
@@ -35,7 +31,6 @@ const FileUpload = () => {
 
   useEffect(() => {
     loadFolders();
-    loadUsers();
   }, []);
 
   const loadFolders = async () => {
@@ -76,17 +71,6 @@ const FileUpload = () => {
     }
   };
 
-  const loadUsers = async () => {
-    try {
-      const response = await authService.listUsers();
-      // Filtrar solo usuarios (no administradores) - igual que en móvil
-      const clientUsers = response.filter(user => user.rol === 'usuario');
-      setUsers(clientUsers);
-    } catch (error) {
-      console.error('Error cargando usuarios:', error);
-      toast.error('Error al cargar usuarios');
-    }
-  };
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -157,8 +141,8 @@ const FileUpload = () => {
   };
 
   const handleUpload = async () => {
-    if (!fileData.nombre.trim() || !fileData.descripcion.trim() || !fileData.carpetaId || !fileData.archivo || !fileData.clienteDestinatario) {
-      toast.error('Por favor completa todos los campos, selecciona un archivo y un cliente destinatario');
+    if (!fileData.nombre.trim() || !fileData.descripcion.trim() || !fileData.carpetaId || !fileData.archivo) {
+      toast.error('Por favor completa todos los campos y selecciona un archivo');
       return;
     }
 
@@ -171,12 +155,11 @@ const FileUpload = () => {
       formData.append('name', fileData.nombre);
       formData.append('description', fileData.descripcion);
       formData.append('folder', fileData.carpetaId);
-      formData.append('clienteDestinatario', fileData.clienteDestinatario);
       
       // Subir archivo usando el servicio
       await fileService.uploadFile(formData);
       
-      toast.success('Archivo subido correctamente');
+      toast.success('Archivo subido correctamente. Será visible para todos los usuarios con acceso a esta categoría de carpeta.');
       setShowUploadModal(false);
       resetForm();
       
@@ -195,17 +178,12 @@ const FileUpload = () => {
       nombre: '',
       descripcion: '',
       carpetaId: '',
-      archivo: null,
-      clienteDestinatario: ''
+      archivo: null
     });
     setSelectedMainFolder(null);
     setSelectedSubfolder(null);
   };
 
-  const getSelectedClientName = () => {
-    const client = users.find(u => u._id === fileData.clienteDestinatario);
-    return client ? (client.companyName || client.email) : 'Seleccionar cliente';
-  };
 
   if (isLoading) {
     return (
@@ -454,87 +432,23 @@ const FileUpload = () => {
                   />
                 </div>
 
-                {/* Cliente Destinatario */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Cliente Destinatario *
-                    </label>
-                    <button
-                      onClick={loadUsers}
-                      className="text-green-600 hover:text-green-800"
-                    >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                {/* Información sobre visibilidad */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setShowClientSelector(!showClientSelector)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-left flex items-center justify-between"
-                  >
-                    <span className={fileData.clienteDestinatario ? 'text-gray-900' : 'text-gray-500'}>
-                      {getSelectedClientName()}
-                    </span>
-                    <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  
-                  {showClientSelector && (
-                    <div className="mt-2 max-h-48 overflow-y-auto border border-gray-300 rounded-md bg-white">
-                      {/* Buscador de clientes */}
-                      <div className="p-3 border-b border-gray-200">
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                          </div>
-                          <input
-                            type="text"
-                            className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                            placeholder="Buscar cliente..."
-                            value={clientSearchQuery}
-                            onChange={(e) => setClientSearchQuery(e.target.value)}
-                          />
-                          {clientSearchQuery && (
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                              <button
-                                onClick={() => setClientSearchQuery('')}
-                                className="text-gray-400 hover:text-gray-600"
-                              >
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {users
-                        .filter(user => 
-                          user.companyName?.toLowerCase().includes(clientSearchQuery.toLowerCase()) ||
-                          user.email?.toLowerCase().includes(clientSearchQuery.toLowerCase())
-                        )
-                        .map((user) => (
-                        <button
-                          key={user._id}
-                          onClick={() => {
-                            setFileData({ ...fileData, clienteDestinatario: user._id });
-                            setShowClientSelector(false);
-                          }}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
-                        >
-                          <div className="text-sm text-gray-900">
-                            {user.companyName || user.email}
-                          </div>
-                          <div className="text-xs text-gray-500">{user.email}</div>
-                        </button>
-                      ))}
                     </div>
-                  )}
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-blue-800">
+                        Visibilidad del archivo
+                      </h3>
+                      <div className="mt-2 text-sm text-blue-700">
+                        <p>Este archivo será visible para todos los usuarios que tengan acceso a las carpetas de la categoría <strong>{selectedMainFolder?.category || selectedSubfolder?.category || 'seleccionada'}</strong>.</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
