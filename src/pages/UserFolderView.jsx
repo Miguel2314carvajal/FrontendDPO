@@ -35,10 +35,8 @@ const UserFolderView = () => {
       
       setFolder(folderData)
       
-      // Cargar subcarpetas si es carpeta principal
-      if (!folderData.parentFolder) {
-        await loadSubfolders()
-      }
+      // Cargar subcarpetas siempre (puede ser carpeta principal o subcarpeta)
+      await loadSubfolders()
       
     } catch (error) {
       console.error('❌ Error cargando carpeta:', error)
@@ -51,16 +49,26 @@ const UserFolderView = () => {
   const loadSubfolders = async () => {
     try {
       console.log('🔄 Cargando subcarpetas...')
-      const folders = await folderService.getFolders()
-      console.log('📁 Estructura completa recibida:', folders)
+      const foldersResponse = await folderService.getFolders()
+      console.log('📁 Respuesta completa del API:', foldersResponse)
+      
+      // Extraer el array de carpetas de la respuesta
+      const folders = Array.isArray(foldersResponse) ? foldersResponse : (foldersResponse.carpetas || [])
+      console.log('📁 Estructura procesada:', folders)
       
       // Función recursiva para encontrar subcarpetas
       const findSubfolders = (folders, targetId) => {
+        if (!Array.isArray(folders)) {
+          console.error('❌ folders no es un array:', folders)
+          return []
+        }
+        
         for (const folder of folders) {
           if (folder._id === targetId) {
+            console.log('✅ Carpeta encontrada:', folder.name, 'Subcarpetas:', folder.subcarpetas)
             return folder.subcarpetas || []
           }
-          if (folder.subcarpetas && folder.subcarpetas.length > 0) {
+          if (folder.subcarpetas && Array.isArray(folder.subcarpetas) && folder.subcarpetas.length > 0) {
             const found = findSubfolders(folder.subcarpetas, targetId)
             if (found.length > 0) {
               return found
@@ -71,7 +79,7 @@ const UserFolderView = () => {
       }
       
       const subfolders = findSubfolders(folders, folderId)
-      console.log('📁 Subcarpetas encontradas:', subfolders.length)
+      console.log('📁 Subcarpetas encontradas:', subfolders.length, subfolders)
       setSubfolders(subfolders)
     } catch (error) {
       console.error('❌ Error cargando subcarpetas:', error)
@@ -208,8 +216,8 @@ const UserFolderView = () => {
           </div>
         </div>
 
-        {/* Subcarpetas (solo si es carpeta principal) */}
-        {isMainFolder && subfolders.length > 0 && (
+        {/* Subcarpetas */}
+        {subfolders.length > 0 && (
           <div className="mb-6">
             <div className="flex items-center mb-4">
               <svg className="h-5 w-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

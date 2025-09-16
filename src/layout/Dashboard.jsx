@@ -72,8 +72,12 @@ const Dashboard = () => {
       console.log('📁 Carpetas asignadas al usuario:', auth?.folders)
       
       // Obtener estructura jerárquica completa
-      const foldersData = await folderService.getFolders()
-      console.log('📁 Estructura jerárquica recibida:', foldersData)
+      const foldersResponse = await folderService.getFolders()
+      console.log('📁 Respuesta completa del API:', foldersResponse)
+      
+      // Extraer el array de carpetas de la respuesta
+      const foldersData = Array.isArray(foldersResponse) ? foldersResponse : (foldersResponse.carpetas || [])
+      console.log('📁 Estructura jerárquica procesada:', foldersData)
       
       // Si el usuario tiene carpetas asignadas, filtrar solo esas
       if (auth?.folders && auth.folders.length > 0) {
@@ -81,13 +85,18 @@ const Dashboard = () => {
         
         // Función recursiva para encontrar carpetas asignadas y sus subcarpetas
         const findAssignedFolders = (folders, assignedIds) => {
+          if (!Array.isArray(folders)) {
+            console.error('❌ folders no es un array:', folders)
+            return []
+          }
+          
           const result = []
           
           folders.forEach(folder => {
             if (assignedIds.includes(folder._id)) {
               // Esta carpeta está asignada al usuario
               result.push(folder)
-            } else if (folder.subcarpetas && folder.subcarpetas.length > 0) {
+            } else if (folder.subcarpetas && Array.isArray(folder.subcarpetas) && folder.subcarpetas.length > 0) {
               // Buscar en subcarpetas
               const foundSubfolders = findAssignedFolders(folder.subcarpetas, assignedIds)
               if (foundSubfolders.length > 0) {
@@ -125,8 +134,12 @@ const Dashboard = () => {
       console.log('🔄 Cargando carpetas...')
       const data = await folderService.getFolders()
       console.log('📁 Datos de carpetas recibidos:', data)
-      setFolders(data.carpetas || [])
-      console.log('📁 Carpetas establecidas:', data.carpetas || [])
+      
+      // Extraer el array de carpetas de la respuesta
+      const foldersData = Array.isArray(data) ? data : (data.carpetas || [])
+      console.log('📁 Carpetas procesadas:', foldersData)
+      
+      setFolders(foldersData)
     } catch (error) {
       console.error('❌ Error cargando carpetas:', error)
       console.log('⚠️ Continuando sin carpetas...')
