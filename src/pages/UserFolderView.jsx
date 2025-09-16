@@ -52,11 +52,25 @@ const UserFolderView = () => {
     try {
       console.log('🔄 Cargando subcarpetas...')
       const folders = await folderService.getFolders()
-      const subfolders = folders.carpetas?.filter(f => 
-        f.parentFolder === folderId || 
-        (typeof f.parentFolder === 'object' && f.parentFolder?._id === folderId)
-      ) || []
+      console.log('📁 Estructura completa recibida:', folders)
       
+      // Función recursiva para encontrar subcarpetas
+      const findSubfolders = (folders, targetId) => {
+        for (const folder of folders) {
+          if (folder._id === targetId) {
+            return folder.subcarpetas || []
+          }
+          if (folder.subcarpetas && folder.subcarpetas.length > 0) {
+            const found = findSubfolders(folder.subcarpetas, targetId)
+            if (found.length > 0) {
+              return found
+            }
+          }
+        }
+        return []
+      }
+      
+      const subfolders = findSubfolders(folders, folderId)
       console.log('📁 Subcarpetas encontradas:', subfolders.length)
       setSubfolders(subfolders)
     } catch (error) {
@@ -203,25 +217,14 @@ const UserFolderView = () => {
               </svg>
               <h2 className="text-lg font-bold text-gray-900">Subcarpetas</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-4">
               {subfolders.map((subfolder) => (
-                <div
-                  key={subfolder._id}
-                  onClick={() => openSubfolder(subfolder._id, subfolder.name)}
-                  className="bg-white rounded-lg shadow-sm p-6 border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
-                >
-                  <div className="flex items-center mb-4">
-                    <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                      </svg>
-                    </div>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{subfolder.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    📄 {subfolder.files?.length || 0} archivos
-                  </p>
-                </div>
+                <SubfolderCard 
+                  key={subfolder._id} 
+                  subfolder={subfolder} 
+                  onOpenSubfolder={openSubfolder}
+                  level={0}
+                />
               ))}
             </div>
           </div>
@@ -298,6 +301,99 @@ const UserFolderView = () => {
           )}
         </div>
       </main>
+    </div>
+  )
+}
+
+// Componente recursivo para mostrar subcarpetas anidadas
+const SubfolderCard = ({ subfolder, onOpenSubfolder, level = 0 }) => {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const hasNestedSubfolders = subfolder.subcarpetas && subfolder.subcarpetas.length > 0
+
+  const getIndentStyle = (level) => {
+    return {
+      marginLeft: `${level * 20}px`,
+      borderLeft: level > 0 ? '2px solid #e5e7eb' : 'none',
+      paddingLeft: level > 0 ? '12px' : '0'
+    }
+  }
+
+  const getFolderIcon = (hasSubfolders, isExpanded) => {
+    if (hasSubfolders) {
+      return isExpanded ? (
+        <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      ) : (
+        <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      )
+    }
+    return (
+      <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+      </svg>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200" style={getIndentStyle(level)}>
+      <div 
+        className="p-4 hover:bg-gray-50 cursor-pointer"
+        onClick={() => onOpenSubfolder(subfolder._id, subfolder.name)}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {getFolderIcon(hasNestedSubfolders, isExpanded)}
+            <div className="h-8 w-8 bg-green-100 rounded-lg flex items-center justify-center">
+              <svg className="h-4 w-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{subfolder.name}</h3>
+              <p className="text-sm text-gray-500">
+                📄 {subfolder.files?.length || 0} archivos
+                {hasNestedSubfolders && ` • ${subfolder.subcarpetas.length} subcarpetas`}
+              </p>
+            </div>
+          </div>
+          {hasNestedSubfolders && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsExpanded(!isExpanded)
+              }}
+              className="p-2 hover:bg-gray-200 rounded-md"
+            >
+              {isExpanded ? (
+                <svg className="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+      
+      {/* Mostrar subcarpetas anidadas si está expandido */}
+      {isExpanded && hasNestedSubfolders && (
+        <div className="border-t border-gray-100">
+          {subfolder.subcarpetas.map((nestedSubfolder) => (
+            <SubfolderCard 
+              key={nestedSubfolder._id} 
+              subfolder={nestedSubfolder} 
+              onOpenSubfolder={onOpenSubfolder}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

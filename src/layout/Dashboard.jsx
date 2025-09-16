@@ -71,74 +71,41 @@ const Dashboard = () => {
       console.log('🔄 Cargando carpetas del usuario:', auth?.email)
       console.log('📁 Carpetas asignadas al usuario:', auth?.folders)
       
-      // Obtener las carpetas asignadas al usuario
+      // Obtener estructura jerárquica completa
+      const foldersData = await folderService.getFolders()
+      console.log('📁 Estructura jerárquica recibida:', foldersData)
+      
+      // Si el usuario tiene carpetas asignadas, filtrar solo esas
       if (auth?.folders && auth.folders.length > 0) {
-        console.log('🔍 Buscando', auth.folders.length, 'carpetas...')
+        console.log('🔍 Filtrando carpetas asignadas al usuario...')
         
-        const userFolders = await Promise.all(
-          auth.folders.map(async (folderId) => {
-            try {
-              console.log('📂 Cargando carpeta:', folderId)
-              const folder = await folderService.getFolder(folderId)
-              console.log('✅ Carpeta cargada:', folder.name)
-              return folder
-            } catch (error) {
-              console.error(`❌ Error cargando carpeta ${folderId}:`, error)
-              return null
-            }
-          })
-        )
-        
-        // Filtrar carpetas válidas y solo mostrar carpetas principales (sin parentFolder)
-        const validFolders = userFolders.filter(folder => folder !== null)
-        const mainFolders = validFolders.filter(folder => 
-          !folder.parentFolder || folder.parentFolder === null
-        )
-        
-        // Calcular total de archivos para cada carpeta (incluyendo subcarpetas)
-        const foldersWithTotalFiles = await Promise.all(
-          mainFolders.map(async (folder) => {
-            try {
-              // Obtener todas las subcarpetas de esta carpeta principal
-              const allFolders = await folderService.getFolders()
-              const subfolders = allFolders.carpetas?.filter(f => 
-                f.parentFolder === folder._id || 
-                (typeof f.parentFolder === 'object' && f.parentFolder?._id === folder._id)
-              ) || []
-              
-              // Sumar archivos de la carpeta principal
-              let totalFiles = folder.files?.length || 0
-              
-              // Sumar archivos de cada subcarpeta
-              for (const subfolder of subfolders) {
-                const subfolderData = await folderService.getFolder(subfolder._id)
-                totalFiles += subfolderData.files?.length || 0
-              }
-              
-              console.log(`📊 Total archivos en ${folder.name}: ${totalFiles} (${folder.files?.length || 0} principales + ${totalFiles - (folder.files?.length || 0)} de subcarpetas)`)
-              console.log(`📁 Datos de carpeta ${folder.name}:`, {
-                files: folder.files,
-                filesLength: folder.files?.length,
-                totalFiles: totalFiles
-              })
-              
-              return {
-                ...folder,
-                totalFiles: totalFiles
-              }
-            } catch (error) {
-              console.error(`❌ Error calculando archivos para ${folder.name}:`, error)
-              return {
-                ...folder,
-                totalFiles: folder.files?.length || 0
+        // Función recursiva para encontrar carpetas asignadas y sus subcarpetas
+        const findAssignedFolders = (folders, assignedIds) => {
+          const result = []
+          
+          folders.forEach(folder => {
+            if (assignedIds.includes(folder._id)) {
+              // Esta carpeta está asignada al usuario
+              result.push(folder)
+            } else if (folder.subcarpetas && folder.subcarpetas.length > 0) {
+              // Buscar en subcarpetas
+              const foundSubfolders = findAssignedFolders(folder.subcarpetas, assignedIds)
+              if (foundSubfolders.length > 0) {
+                result.push({
+                  ...folder,
+                  subcarpetas: foundSubfolders
+                })
               }
             }
           })
-        )
+          
+          return result
+        }
         
-        console.log('📊 Carpetas válidas encontradas:', validFolders.length)
-        console.log('📁 Carpetas principales (sin subcarpetas):', mainFolders.length)
-        setFolders(foldersWithTotalFiles)
+        const userFolders = findAssignedFolders(foldersData, auth.folders)
+        console.log('📁 Carpetas del usuario (con estructura jerárquica):', userFolders)
+        
+        setFolders(userFolders)
       } else {
         console.log('⚠️ Usuario no tiene carpetas asignadas')
         setFolders([])
