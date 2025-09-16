@@ -4,6 +4,8 @@ import { folderService } from '../services/folderService';
 import { authService } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import NestedFolderTree from '../components/NestedFolderTree';
+import NestedFolderCreator from '../components/NestedFolderCreator';
 
 const FolderManagement = () => {
   const [folders, setFolders] = useState([]);
@@ -42,6 +44,13 @@ const FolderManagement = () => {
     name: '',
     originalName: ''
   });
+
+  // Estados para carpetas anidadas
+  const [showNestedCreateModal, setShowNestedCreateModal] = useState(false);
+  const [showHierarchicalView, setShowHierarchicalView] = useState(false);
+  const [hierarchicalFolders, setHierarchicalFolders] = useState([]);
+  const [selectedParentFolder, setSelectedParentFolder] = useState(null);
+  const [selectedParentPath, setSelectedParentPath] = useState([]);
 
   const { auth } = useAuth();
   const navigate = useNavigate();
@@ -118,6 +127,75 @@ const FolderManagement = () => {
     } catch (error) {
       console.error('Error cargando usuarios:', error);
       toast.error('Error al cargar usuarios');
+    }
+  };
+
+  // Funciones para carpetas anidadas
+  const loadHierarchicalFolders = async () => {
+    try {
+      const data = await folderService.getHierarchicalStructure();
+      setHierarchicalFolders(data.carpetas || []);
+    } catch (error) {
+      console.error('Error cargando estructura jerárquica:', error);
+      toast.error('Error al cargar estructura jerárquica');
+    }
+  };
+
+  const handleCreateNestedFolder = async (folderData) => {
+    try {
+      await folderService.createNestedFolder(folderData);
+      toast.success('Carpeta anidada creada exitosamente');
+      setShowNestedCreateModal(false);
+      setSelectedParentFolder(null);
+      setSelectedParentPath([]);
+      loadFolders();
+      if (showHierarchicalView) {
+        loadHierarchicalFolders();
+      }
+    } catch (error) {
+      console.error('Error creando carpeta anidada:', error);
+      toast.error(error.mensaje || 'Error al crear carpeta anidada');
+    }
+  };
+
+  const handleAddSubfolder = (parentFolder) => {
+    setSelectedParentFolder(parentFolder);
+    setSelectedParentPath([parentFolder.name]);
+    setShowNestedCreateModal(true);
+  };
+
+  const handleEditNestedFolder = (folder) => {
+    setSelectedFolder(folder);
+    setFormData({
+      name: folder.name,
+      parentFolder: folder.parentFolder?._id || null,
+      description: '',
+      subfolders: [],
+      category: folder.category || 'profesional_independiente'
+    });
+    setShowEditModal(true);
+  };
+
+  const handleDeleteNestedFolder = async (folder) => {
+    if (window.confirm(`¿Estás seguro de que quieres eliminar la carpeta "${folder.name}" y todas sus subcarpetas?`)) {
+      try {
+        await folderService.deleteFolder(folder._id);
+        toast.success('Carpeta eliminada exitosamente');
+        loadFolders();
+        if (showHierarchicalView) {
+          loadHierarchicalFolders();
+        }
+      } catch (error) {
+        console.error('Error eliminando carpeta:', error);
+        toast.error(error.mensaje || 'Error al eliminar carpeta');
+      }
+    }
+  };
+
+  const toggleHierarchicalView = () => {
+    setShowHierarchicalView(!showHierarchicalView);
+    if (!showHierarchicalView) {
+      loadHierarchicalFolders();
     }
   };
 
@@ -411,95 +489,145 @@ const FolderManagement = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-          >
-            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Nueva Carpeta
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Nueva Carpeta
+            </button>
+            
+            <button
+              onClick={() => setShowNestedCreateModal(true)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              Carpeta Anidada
+            </button>
+            
+            <button
+              onClick={toggleHierarchicalView}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
+                showHierarchicalView 
+                  ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                  : 'bg-gray-600 text-white hover:bg-gray-700'
+              }`}
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              {showHierarchicalView ? 'Vista Lista' : 'Vista Jerárquica'}
+            </button>
+          </div>
         </div>
 
-        {/* Folders Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mainFolders.map((folder) => (
-            <div key={folder._id} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
+        {/* Folders Display */}
+        {showHierarchicalView ? (
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Estructura Jerárquica de Carpetas</h2>
+            {hierarchicalFolders.length > 0 ? (
+              <NestedFolderTree
+                folders={hierarchicalFolders}
+                onAddSubfolder={handleAddSubfolder}
+                onEditFolder={handleEditNestedFolder}
+                onDeleteFolder={handleDeleteNestedFolder}
+              />
+            ) : (
+              <div className="text-center py-8">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No hay carpetas</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Comienza creando tu primera carpeta anidada.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {mainFolders.map((folder) => (
+              <div key={folder._id} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-lg font-medium text-gray-900">{folder.name}</h3>
+                      <p className="text-sm text-gray-500">
+                        {folder.totalFiles || folder.files?.length || 0} archivos
+                      </p>
+                    </div>
                   </div>
-                  <div className="ml-3">
-                    <h3 className="text-lg font-medium text-gray-900">{folder.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      {folder.totalFiles || folder.files?.length || 0} archivos
-                    </p>
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => openEditModal(folder)}
+                      className="text-blue-600 hover:text-blue-800 p-1"
+                      title="Editar"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFolder(folder._id)}
+                      className="text-red-600 hover:text-red-800 p-1"
+                      title="Eliminar"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => openEditModal(folder)}
-                    className="text-blue-600 hover:text-blue-800 p-1"
-                    title="Editar"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteFolder(folder._id)}
-                    className="text-red-600 hover:text-red-800 p-1"
-                    title="Eliminar"
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">Usuarios asignados:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {folder.usuarios?.length > 0 ? (
+                      folder.usuarios.map((user) => (
+                        <span key={user._id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {user.companyName || user.email}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-gray-500">Sin usuarios asignados</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">Subcarpetas:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {subFolders.filter(sf => sf.parentFolder?._id === folder._id).length > 0 ? (
+                      subFolders.filter(sf => sf.parentFolder?._id === folder._id).map((subfolder) => (
+                        <span key={subfolder._id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          {subfolder.name}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-gray-500">Sin subcarpetas</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-xs text-gray-500">
+                  Creada: {new Date(folder.createdAt).toLocaleDateString()}
                 </div>
               </div>
-              
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">Usuarios asignados:</p>
-                <div className="flex flex-wrap gap-1">
-                  {folder.usuarios?.length > 0 ? (
-                    folder.usuarios.map((user) => (
-                      <span key={user._id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {user.companyName || user.email}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-500">Sin usuarios asignados</span>
-                  )}
-                </div>
-              </div>
+            ))}
+          </div>
+        )}
 
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">Subcarpetas:</p>
-                <div className="flex flex-wrap gap-1">
-                  {subFolders.filter(sf => sf.parentFolder?._id === folder._id).length > 0 ? (
-                    subFolders.filter(sf => sf.parentFolder?._id === folder._id).map((subfolder) => (
-                      <span key={subfolder._id} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {subfolder.name}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-500">Sin subcarpetas</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="text-xs text-gray-500">
-                Creada: {new Date(folder.createdAt).toLocaleDateString()}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {mainFolders.length === 0 && (
+        {!showHierarchicalView && mainFolders.length === 0 && (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -951,6 +1079,19 @@ const FolderManagement = () => {
           </div>
         </div>
       )}
+
+      {/* Nested Folder Creator Modal */}
+      <NestedFolderCreator
+        isOpen={showNestedCreateModal}
+        onClose={() => {
+          setShowNestedCreateModal(false);
+          setSelectedParentFolder(null);
+          setSelectedParentPath([]);
+        }}
+        onSubmit={handleCreateNestedFolder}
+        parentFolder={selectedParentFolder}
+        parentPath={selectedParentPath}
+      />
     </div>
   );
 };

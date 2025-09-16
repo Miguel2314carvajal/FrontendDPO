@@ -67,6 +67,62 @@ export const folderService = {
     }
   },
 
+  // Crear carpeta anidada (solo admin)
+  createNestedFolder: async (folderData) => {
+    try {
+      const response = await api.post('/api/folders/crear-anidada', folderData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creando carpeta anidada:', error);
+      throw error.response?.data || { mensaje: 'Error al crear carpeta anidada' };
+    }
+  },
+
+  // Obtener estructura jerárquica
+  getHierarchicalStructure: async (category = null) => {
+    try {
+      const url = category ? `/api/folders/estructura/jerarquica?category=${category}` : '/api/folders/estructura/jerarquica';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo estructura jerárquica:', error);
+      throw error.response?.data || { mensaje: 'Error al obtener estructura jerárquica' };
+    }
+  },
+
+  // Obtener subcarpetas de una carpeta
+  getSubfolders: async (folderId) => {
+    try {
+      const response = await api.get(`/api/folders/${folderId}/subcarpetas`);
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo subcarpetas:', error);
+      throw error.response?.data || { mensaje: 'Error al obtener subcarpetas' };
+    }
+  },
+
+  // Agregar subcarpeta a una carpeta existente
+  addSubfolder: async (folderId, subfolderData) => {
+    try {
+      const response = await api.post(`/api/folders/${folderId}/subcarpetas`, subfolderData);
+      return response.data;
+    } catch (error) {
+      console.error('Error agregando subcarpeta:', error);
+      throw error.response?.data || { mensaje: 'Error al agregar subcarpeta' };
+    }
+  },
+
+  // Obtener ruta de una carpeta
+  getFolderPath: async (folderId) => {
+    try {
+      const response = await api.get(`/api/folders/${folderId}/ruta`);
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo ruta de carpeta:', error);
+      throw error.response?.data || { mensaje: 'Error al obtener ruta de carpeta' };
+    }
+  },
+
   // Eliminar carpeta (solo admin)
   deleteFolder: async (folderId) => {
     try {

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const API_URL = 'https://auditorias-backend-production.up.railway.app';
-const API_TIMEOUT = 15000; // 15 segundos para Railway
+const API_TIMEOUT = 60000; // 60 segundos temporalmente para debugging
 
 const api = axios.create({
   baseURL: API_URL,
