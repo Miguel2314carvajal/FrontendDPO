@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import NestedFolderTree from '../components/NestedFolderTree';
 import NestedFolderCreator from '../components/NestedFolderCreator';
+import EditarCarpetaAnidada from '../components/EditarCarpetaAnidada';
+import '../components/EditarCarpetaAnidada.css';
 
 const FolderManagement = () => {
   const [folders, setFolders] = useState([]);
@@ -14,6 +16,7 @@ const FolderManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditNestedModal, setShowEditNestedModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(null);
   const [formData, setFormData] = useState({
@@ -47,7 +50,6 @@ const FolderManagement = () => {
 
   // Estados para carpetas anidadas
   const [showNestedCreateModal, setShowNestedCreateModal] = useState(false);
-  const [showHierarchicalView, setShowHierarchicalView] = useState(false);
   const [hierarchicalFolders, setHierarchicalFolders] = useState([]);
   const [selectedParentFolder, setSelectedParentFolder] = useState(null);
   const [selectedParentPath, setSelectedParentPath] = useState([]);
@@ -74,30 +76,43 @@ const FolderManagement = () => {
     }
   };
 
+  // Función recursiva para contar archivos en todas las subcarpetas
+  const countFilesRecursively = (folder, allFolders) => {
+    let totalFiles = folder.files?.length || 0;
+    
+    // Buscar subcarpetas directas
+    const directSubfolders = allFolders.filter(f => 
+      f.parentFolder === folder._id || 
+      (typeof f.parentFolder === 'object' && f.parentFolder?._id === folder._id)
+    );
+    
+    // Contar archivos de subcarpetas directas y recursivamente
+    for (const subfolder of directSubfolders) {
+      totalFiles += subfolder.files?.length || 0;
+      // Llamada recursiva para subcarpetas anidadas
+      totalFiles += countFilesRecursively(subfolder, allFolders);
+    }
+    
+    return totalFiles;
+  };
+
   const loadFolders = async () => {
     try {
       const data = await folderService.getFolders();
       const folders = data.carpetas || [];
       
-      // Calcular total de archivos para cada carpeta (incluyendo subcarpetas)
+      // Calcular total de archivos para cada carpeta (incluyendo subcarpetas anidadas)
       const foldersWithTotalFiles = await Promise.all(
         folders.map(async (folder) => {
           try {
-            // Obtener todas las subcarpetas de esta carpeta
-            const subfolders = folders.filter(f => 
-              f.parentFolder === folder._id || 
-              (typeof f.parentFolder === 'object' && f.parentFolder?._id === folder._id)
-            );
-            
-            // Sumar archivos de la carpeta principal
-            let totalFiles = folder.files?.length || 0;
-            
-            // Sumar archivos de cada subcarpeta
-            for (const subfolder of subfolders) {
-              totalFiles += subfolder.files?.length || 0;
+            // Solo procesar carpetas principales (sin parentFolder)
+            if (folder.parentFolder && folder.parentFolder !== null) {
+              return folder; // No procesar subcarpetas aquí
             }
             
-            console.log(`📊 Total archivos en ${folder.name}: ${totalFiles} (${folder.files?.length || 0} principales + ${totalFiles - (folder.files?.length || 0)} de subcarpetas)`);
+            const totalFiles = countFilesRecursively(folder, folders);
+            
+            console.log(`📊 Total archivos en ${folder.name}: ${totalFiles} (${folder.files?.length || 0} principales + ${totalFiles - (folder.files?.length || 0)} de subcarpetas anidadas)`);
             
             return {
               ...folder,
@@ -113,7 +128,12 @@ const FolderManagement = () => {
         })
       );
       
-      setFolders(foldersWithTotalFiles);
+      // Filtrar solo carpetas principales para mostrar
+      const mainFolders = foldersWithTotalFiles.filter(folder => 
+        !folder.parentFolder || folder.parentFolder === null
+      );
+      
+      setFolders(mainFolders);
     } catch (error) {
       console.error('Error cargando carpetas:', error);
       toast.error('Error al cargar carpetas');
@@ -166,14 +186,15 @@ const FolderManagement = () => {
 
   const handleEditNestedFolder = (folder) => {
     setSelectedFolder(folder);
-    setFormData({
-      name: folder.name,
-      parentFolder: folder.parentFolder?._id || null,
-      description: '',
-      subfolders: [],
-      category: folder.category || 'profesional_independiente'
-    });
-    setShowEditModal(true);
+    setShowEditNestedModal(true);
+  };
+
+  const handleUpdateNestedFolder = (updatedFolder) => {
+    // Actualizar la lista de carpetas
+    setFolders(prev => prev.map(f => f._id === updatedFolder._id ? updatedFolder : f));
+    setShowEditNestedModal(false);
+    setSelectedFolder(null);
+    loadFolders(); // Recargar para asegurar consistencia
   };
 
   const handleDeleteNestedFolder = async (folder) => {
@@ -192,12 +213,6 @@ const FolderManagement = () => {
     }
   };
 
-  const toggleHierarchicalView = () => {
-    setShowHierarchicalView(!showHierarchicalView);
-    if (!showHierarchicalView) {
-      loadHierarchicalFolders();
-    }
-  };
 
   const handleCreateFolder = async () => {
     try {
@@ -491,16 +506,6 @@ const FolderManagement = () => {
           </div>
           <div className="flex space-x-2">
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-            >
-              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Nueva Carpeta
-            </button>
-            
-            <button
               onClick={() => setShowNestedCreateModal(true)}
               className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
             >
@@ -509,49 +514,12 @@ const FolderManagement = () => {
               </svg>
               Carpeta Anidada
             </button>
-            
-            <button
-              onClick={toggleHierarchicalView}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
-                showHierarchicalView 
-                  ? 'bg-purple-600 text-white hover:bg-purple-700' 
-                  : 'bg-gray-600 text-white hover:bg-gray-700'
-              }`}
-            >
-              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-              {showHierarchicalView ? 'Vista Lista' : 'Vista Jerárquica'}
-            </button>
           </div>
         </div>
 
         {/* Folders Display */}
-        {showHierarchicalView ? (
-          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Estructura Jerárquica de Carpetas</h2>
-            {hierarchicalFolders.length > 0 ? (
-              <NestedFolderTree
-                folders={hierarchicalFolders}
-                onAddSubfolder={handleAddSubfolder}
-                onEditFolder={handleEditNestedFolder}
-                onDeleteFolder={handleDeleteNestedFolder}
-              />
-            ) : (
-              <div className="text-center py-8">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No hay carpetas</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Comienza creando tu primera carpeta anidada.
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mainFolders.map((folder) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {mainFolders.map((folder) => (
               <div key={folder._id} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center">
@@ -569,7 +537,7 @@ const FolderManagement = () => {
                   </div>
                   <div className="flex space-x-1">
                     <button
-                      onClick={() => openEditModal(folder)}
+                      onClick={() => handleEditNestedFolder(folder)}
                       className="text-blue-600 hover:text-blue-800 p-1"
                       title="Editar"
                     >
@@ -625,9 +593,8 @@ const FolderManagement = () => {
               </div>
             ))}
           </div>
-        )}
 
-        {!showHierarchicalView && mainFolders.length === 0 && (
+        {mainFolders.length === 0 && (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -1092,6 +1059,18 @@ const FolderManagement = () => {
         parentFolder={selectedParentFolder}
         parentPath={selectedParentPath}
       />
+
+      {/* Edit Nested Folder Modal */}
+      {showEditNestedModal && selectedFolder && (
+        <EditarCarpetaAnidada
+          carpeta={selectedFolder}
+          onClose={() => {
+            setShowEditNestedModal(false);
+            setSelectedFolder(null);
+          }}
+          onUpdate={handleUpdateNestedFolder}
+        />
+      )}
     </div>
   );
 };

@@ -3,7 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import { folderService } from '../services/folderService';
 import { fileService } from '../services/fileService';
-import { authService } from '../services/authService';
 import toast from 'react-hot-toast';
 
 const FolderFiles = () => {
@@ -147,11 +146,12 @@ const FolderFiles = () => {
       formData.append('name', fileData.nombre);
       formData.append('description', fileData.descripcion);
       formData.append('folder', folderId);
+      formData.append('clienteDestinatario', auth._id);
       
       // Subir archivo usando el servicio
       await fileService.uploadFile(formData);
       
-      toast.success('Archivo subido correctamente. Será visible para todos los usuarios con acceso a esta categoría de carpeta.');
+      toast.success('Archivo subido correctamente');
       setShowUploadModal(false);
       resetForm();
       
@@ -474,24 +474,6 @@ const FolderFiles = () => {
                   />
                 </div>
 
-                {/* Información sobre visibilidad */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <h3 className="text-sm font-medium text-blue-800">
-                        Visibilidad del archivo
-                      </h3>
-                      <div className="mt-2 text-sm text-blue-700">
-                        <p>Este archivo será visible para todos los usuarios que tengan acceso a las carpetas de la categoría <strong>{folder?.category || 'de esta carpeta'}</strong>.</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
 
               {/* Botones */}
