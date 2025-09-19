@@ -4,6 +4,7 @@ import { groupService } from '../services/groupService';
 import { authService } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import UserSelector from '../components/UserSelector';
 
 const GroupManagement = () => {
   const [groups, setGroups] = useState([]);
@@ -42,10 +43,10 @@ const GroupManagement = () => {
   const loadGroups = async () => {
     try {
       const data = await groupService.getGroups();
-      setGroups(data);
+      setGroups(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error cargando grupos:', error);
-      toast.error('Error al cargar grupos');
+      toast.error(error.mensaje || 'Error al cargar grupos');
     }
   };
 
@@ -66,11 +67,29 @@ const GroupManagement = () => {
         return;
       }
 
-      await groupService.createGroup(formData);
-      toast.success(`Grupo "${formData.name}" creado exitosamente`);
-      setShowCreateModal(false);
-      setFormData({ name: '', description: '', category: 'profesional_independiente', users: [] });
-      loadGroups();
+      // Crear grupo con los campos necesarios incluyendo usuarios
+      const groupData = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        category: formData.category || 'profesional_independiente',
+        users: formData.users // Incluir los IDs de usuarios seleccionados
+      };
+
+      const response = await groupService.createGroup(groupData);
+      
+      if (response.group) {
+        toast.success(`Grupo "${groupData.name}" creado exitosamente`);
+        setShowCreateModal(false);
+        setFormData({ 
+          name: '', 
+          description: '', 
+          category: 'profesional_independiente', 
+          users: [] 
+        });
+        loadGroups();
+      } else {
+        throw new Error(response.mensaje || 'Error al crear el grupo');
+      }
     } catch (error) {
       console.error('Error creando grupo:', error);
       toast.error(error.mensaje || 'Error al crear grupo');
@@ -84,7 +103,14 @@ const GroupManagement = () => {
         return;
       }
 
-      await groupService.updateGroup(selectedGroup._id, formData);
+      // Solo actualizar la información básica del grupo ya que los usuarios
+      // se manejan individualmente al hacer clic en la X
+      await groupService.updateGroup(selectedGroup._id, {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        category: formData.category
+      });
+
       toast.success(`Grupo "${formData.name}" actualizado exitosamente`);
       setShowEditModal(false);
       setSelectedGroup(null);
@@ -191,12 +217,6 @@ const GroupManagement = () => {
               <h3 className="mt-2 text-sm font-medium text-gray-900">No hay grupos</h3>
               <p className="mt-1 text-sm text-gray-500">Comienza creando tu primer grupo.</p>
               <div className="mt-6">
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                >
-                  Crear Grupo
-                </button>
               </div>
             </div>
           ) : (
@@ -250,15 +270,6 @@ const GroupManagement = () => {
                       </svg>
                       Sesiones máximas: {group.maxSessions || group.users?.length || 0}
                     </div>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t">
-                    <button
-                      onClick={() => openAssignModal(group)}
-                      className="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm"
-                    >
-                      Gestionar Usuarios
-                    </button>
                   </div>
                 </div>
               ))}
@@ -318,6 +329,16 @@ const GroupManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     rows="3"
                     placeholder="Descripción del grupo..."
+                  />
+                </div>
+
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Seleccionar Usuarios
+                  </label>
+                  <UserSelector
+                    selectedUsers={formData.users}
+                    onChange={(selectedUsers) => setFormData({ ...formData, users: selectedUsers })}
                   />
                 </div>
               </div>
@@ -396,6 +417,90 @@ const GroupManagement = () => {
                     rows="3"
                     placeholder="Descripción del grupo..."
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Usuarios del Grupo
+                  </label>
+                  <div className="space-y-4">
+                    {/* Lista de usuarios actuales */}
+                    <div className="mt-2 space-y-2">
+                      {selectedGroup.users.length === 0 ? (
+                        <p className="text-sm text-gray-500">No hay usuarios en este grupo</p>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-2">
+                          {selectedGroup.users.map((user) => (
+                            <div key={user._id} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                              <span className="text-sm text-gray-700">{user.name} ({user.email})</span>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await groupService.removeUserFromGroup(selectedGroup._id, user._id);
+                                    toast.success(`Usuario ${user.name} removido del grupo`);
+                                    // Actualizar el estado local
+                                    setFormData({
+                                      ...formData,
+                                      users: formData.users.filter(id => id !== user._id)
+                                    });
+                                    // Actualizar el selectedGroup para reflejar el cambio inmediatamente
+                                    setSelectedGroup({
+                                      ...selectedGroup,
+                                      users: selectedGroup.users.filter(u => u._id !== user._id)
+                                    });
+                                  } catch (error) {
+                                    console.error('Error removiendo usuario:', error);
+                                    toast.error(error.mensaje || 'Error al remover usuario del grupo');
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                                title="Remover usuario"
+                              >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Selector para agregar nuevos usuarios */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Agregar Nuevos Usuarios
+                      </label>
+                      <UserSelector
+                        selectedUsers={[]}
+                        onChange={async (selectedUserIds) => {
+                          try {
+                            // Solo tomamos el último usuario seleccionado
+                            const newUserId = selectedUserIds[selectedUserIds.length - 1];
+                            if (newUserId) {
+                              await groupService.addUserToGroup(selectedGroup._id, newUserId);
+                              
+                              // Encontrar el usuario completo desde la lista de usuarios
+                              const newUser = users.find(u => u._id === newUserId);
+                              if (newUser) {
+                                toast.success(`Usuario ${newUser.name} agregado al grupo`);
+                                
+                                // Actualizar el selectedGroup para reflejar el cambio inmediatamente
+                                setSelectedGroup({
+                                  ...selectedGroup,
+                                  users: [...selectedGroup.users, newUser]
+                                });
+                              }
+                            }
+                          } catch (error) {
+                            console.error('Error agregando usuario:', error);
+                            toast.error(error.mensaje || 'Error al agregar usuario al grupo');
+                          }
+                        }}
+                        excludeUsers={selectedGroup.users.map(u => u._id)}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
               

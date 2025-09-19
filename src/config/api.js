@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://auditorias-backend-production.up.railway.app';
+const API_URL = 'http://localhost:3000'; // Cambia esto a la URL de tu API
 const API_TIMEOUT = 60000; // 60 segundos temporalmente para debugging
 
 const api = axios.create({

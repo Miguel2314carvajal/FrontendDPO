@@ -11,6 +11,7 @@ import FileManagement from './pages/FileManagement'
 import FolderFiles from './pages/FolderFiles'
 import UserFolderView from './pages/UserFolderView'
 import ChangePassword from './pages/ChangePassword'
+import GroupManagement from './pages/GroupManagement'
 import { useContext } from 'react'
 
 function App() {
@@ -46,6 +47,12 @@ function App() {
           <Route path="/dashboard/new-user" element={
             <ProtectedRoute>
               <NewUser />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/dashboard/group" element={
+            <ProtectedRoute>
+              <GroupManagement />
             </ProtectedRoute>
           } />
           

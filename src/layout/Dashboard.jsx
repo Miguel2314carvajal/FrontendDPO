@@ -413,6 +413,30 @@ const Dashboard = () => {
                 </svg>
               </div>
             </button>
+
+            <button 
+              onClick={() => navigate('/dashboard/group')}
+              className="bg-white rounded-lg shadow-sm p-4 border border-gray-200 hover:shadow-md transition-shadow text-left w-full"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <svg className="h-5 w-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-gray-900">Gestión de Grupos</h3>
+                    <p className="text-xs text-gray-500">Crear, editar y eliminar Grupos</p>
+                  </div>
+                </div>
+                <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
             
             <div className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
               <div className="flex items-center justify-between">
@@ -425,6 +449,7 @@ const Dashboard = () => {
                       </svg>
                     </div>
                   </div>
+                  
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-gray-900">Configuración del Sistema</h3>
                     <p className="text-xs text-gray-500">Ajustar parámetros generales</p>

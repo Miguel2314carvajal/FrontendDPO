@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthProvider';
 import { authService } from '../services/authService';
+import api from '../config/api';
 import { folderService } from '../services/folderService';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -35,11 +36,20 @@ const UserManagement = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await authService.listUsers();
-      setUsers(response);
+      const response = await api.get('/api/users/listar');
+      console.log('✅ Usuarios cargados:', response.data);
+      
+      if (response.data && Array.isArray(response.data.users)) {
+        setUsers(response.data.users);
+      } else if (Array.isArray(response.data)) {
+        setUsers(response.data);
+      } else {
+        console.error('❌ Formato de respuesta inesperado:', response.data);
+        toast.error('Error en el formato de datos');
+      }
     } catch (error) {
       console.error('Error cargando usuarios:', error);
-      toast.error('Error al cargar usuarios');
+      toast.error(error.response?.data?.msg || 'Error al cargar usuarios');
     } finally {
       setLoading(false);
     }

@@ -70,7 +70,7 @@ export const groupService = {
   addUserToGroup: async (groupId, userId) => {
     try {
       console.log('🔄 Agregando usuario al grupo:', groupId, userId);
-      const response = await api.post(`/api/groups/${groupId}/usuarios/${userId}`);
+      const response = await api.post(`/api/groups/${groupId}/usuarios`, { users: [userId] });
       console.log('✅ Usuario agregado al grupo:', response.data);
       return response.data;
     } catch (error) {
@@ -89,6 +89,19 @@ export const groupService = {
     } catch (error) {
       console.error('❌ Error removiendo usuario del grupo:', error);
       throw error.response?.data || { mensaje: 'Error al remover usuario del grupo' };
+    }
+  },
+
+  // Agregar usuario al grupo
+  addUserToGroup: async (groupId, userId) => {
+    try {
+      console.log('🔄 Agregando usuario al grupo:', groupId, userId);
+      const response = await api.post(`/api/groups/${groupId}/usuarios/${userId}`);
+      console.log('✅ Usuario agregado al grupo:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error agregando usuario al grupo:', error);
+      throw error.response?.data || { mensaje: 'Error al agregar usuario al grupo' };
     }
   }
 };
